@@ -25,6 +25,7 @@ PROFILE=""
 CLAUDE_CODE_COMMANDS=""
 USE_CLAUDE_CODE_SUBAGENTS=""
 AGENT_OS_COMMANDS=""
+GITHUB_COPILOT_AGENTS=""
 STANDARDS_AS_CLAUDE_CODE_SKILLS=""
 RE_INSTALL="false"
 OVERWRITE_ALL="false"
@@ -50,6 +51,7 @@ Options:
     --claude-code-commands [BOOL]            Install Claude Code commands (true/false)
     --use-claude-code-subagents [BOOL]       Use Claude Code subagents with delegation (true/false)
     --agent-os-commands [BOOL]               Install agent-os commands for other tools (true/false)
+    --github-copilot-agents [BOOL]           Install GitHub Copilot agents (true/false)
     --standards-as-claude-code-skills [BOOL] Use Claude Code Skills for standards (true/false)
     --re-install                             Delete and reinstall Agent OS
     --overwrite-all                          Overwrite all existing files
@@ -66,6 +68,7 @@ Examples:
     $0
     $0 --overwrite-agents
     $0 --claude-code-commands true --use-claude-code-subagents true
+    $0 --github-copilot-agents true
     $0 --dry-run --verbose
 
 EOF
@@ -96,6 +99,10 @@ parse_arguments() {
                 ;;
             --agent-os-commands)
                 read AGENT_OS_COMMANDS shift_count <<< "$(parse_bool_flag "$AGENT_OS_COMMANDS" "$2")"
+                shift $shift_count
+                ;;
+            --github-copilot-agents)
+                read GITHUB_COPILOT_AGENTS shift_count <<< "$(parse_bool_flag "$GITHUB_COPILOT_AGENTS" "$2")"
                 shift $shift_count
                 ;;
             --standards-as-claude-code-skills)
@@ -176,11 +183,12 @@ load_configurations() {
     EFFECTIVE_CLAUDE_CODE_COMMANDS="${CLAUDE_CODE_COMMANDS:-$BASE_CLAUDE_CODE_COMMANDS}"
     EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS="${USE_CLAUDE_CODE_SUBAGENTS:-$BASE_USE_CLAUDE_CODE_SUBAGENTS}"
     EFFECTIVE_AGENT_OS_COMMANDS="${AGENT_OS_COMMANDS:-$BASE_AGENT_OS_COMMANDS}"
+    EFFECTIVE_GITHUB_COPILOT_AGENTS="${GITHUB_COPILOT_AGENTS:-$BASE_GITHUB_COPILOT_AGENTS}"
     EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS="${STANDARDS_AS_CLAUDE_CODE_SKILLS:-$BASE_STANDARDS_AS_CLAUDE_CODE_SKILLS}"
     EFFECTIVE_VERSION="$BASE_VERSION"
 
     # Validate config but suppress warnings (will show after user confirms update)
-    validate_config "$EFFECTIVE_CLAUDE_CODE_COMMANDS" "$EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS" "$EFFECTIVE_AGENT_OS_COMMANDS" "$EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS" "$EFFECTIVE_PROFILE" "false"
+    validate_config "$EFFECTIVE_CLAUDE_CODE_COMMANDS" "$EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS" "$EFFECTIVE_AGENT_OS_COMMANDS" "$EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS" "$EFFECTIVE_PROFILE" "false" "$EFFECTIVE_GITHUB_COPILOT_AGENTS"
 
     print_verbose "Base configuration:"
     print_verbose "  Version: $BASE_VERSION"
@@ -188,6 +196,7 @@ load_configurations() {
     print_verbose "  Claude Code commands: $BASE_CLAUDE_CODE_COMMANDS"
     print_verbose "  Use Claude Code subagents: $BASE_USE_CLAUDE_CODE_SUBAGENTS"
     print_verbose "  Agent OS commands: $BASE_AGENT_OS_COMMANDS"
+    print_verbose "  GitHub Copilot agents: $BASE_GITHUB_COPILOT_AGENTS"
     print_verbose "  Standards as Claude Code Skills: $BASE_STANDARDS_AS_CLAUDE_CODE_SKILLS"
 
     print_verbose "Project configuration:"
@@ -196,6 +205,7 @@ load_configurations() {
     print_verbose "  Claude Code commands: $PROJECT_CLAUDE_CODE_COMMANDS"
     print_verbose "  Use Claude Code subagents: $PROJECT_USE_CLAUDE_CODE_SUBAGENTS"
     print_verbose "  Agent OS commands: $PROJECT_AGENT_OS_COMMANDS"
+    print_verbose "  GitHub Copilot agents: $PROJECT_GITHUB_COPILOT_AGENTS"
     print_verbose "  Standards as Claude Code Skills: $PROJECT_STANDARDS_AS_CLAUDE_CODE_SKILLS"
 
     print_verbose "Effective configuration:"
@@ -203,6 +213,7 @@ load_configurations() {
     print_verbose "  Claude Code commands: $EFFECTIVE_CLAUDE_CODE_COMMANDS"
     print_verbose "  Use Claude Code subagents: $EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS"
     print_verbose "  Agent OS commands: $EFFECTIVE_AGENT_OS_COMMANDS"
+    print_verbose "  GitHub Copilot agents: $EFFECTIVE_GITHUB_COPILOT_AGENTS"
     print_verbose "  Standards as Claude Code Skills: $EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS"
 }
 
@@ -561,7 +572,8 @@ update_agent_os_folder() {
     # Update the configuration file
     write_project_config "$EFFECTIVE_VERSION" "$PROJECT_PROFILE" \
         "$PROJECT_CLAUDE_CODE_COMMANDS" "$PROJECT_USE_CLAUDE_CODE_SUBAGENTS" \
-        "$PROJECT_AGENT_OS_COMMANDS" "$PROJECT_STANDARDS_AS_CLAUDE_CODE_SKILLS"
+        "$PROJECT_AGENT_OS_COMMANDS" "$PROJECT_STANDARDS_AS_CLAUDE_CODE_SKILLS" \
+        "$PROJECT_GITHUB_COPILOT_AGENTS"
 
     if [[ "$DRY_RUN" != "true" ]]; then
         echo "✓ Updated agent-os folder"
@@ -579,6 +591,7 @@ perform_update() {
     echo -e "  Use Claude Code subagents: ${YELLOW}$PROJECT_USE_CLAUDE_CODE_SUBAGENTS${NC}"
     echo -e "  Standards as Claude Code Skills: ${YELLOW}$PROJECT_STANDARDS_AS_CLAUDE_CODE_SKILLS${NC}"
     echo -e "  Agent OS commands: ${YELLOW}$PROJECT_AGENT_OS_COMMANDS${NC}"
+    echo -e "  GitHub Copilot agents: ${YELLOW}$PROJECT_GITHUB_COPILOT_AGENTS${NC}"
     echo ""
 
     # Update agent-os folder and configuration
@@ -609,6 +622,12 @@ perform_update() {
     # Update agent-os commands if enabled
     if [[ "$PROJECT_AGENT_OS_COMMANDS" == "true" ]]; then
         update_single_agent_commands
+        echo ""
+    fi
+
+    # Update GitHub Copilot agents if enabled
+    if [[ "$PROJECT_GITHUB_COPILOT_AGENTS" == "true" ]]; then
+        install_github_copilot_agents
         echo ""
     fi
 
@@ -715,6 +734,7 @@ prompt_update_confirmation() {
         echo "  Claude Code commands: ${PROJECT_CLAUDE_CODE_COMMANDS:-false}"
         echo "  Use Claude Code subagents: ${PROJECT_USE_CLAUDE_CODE_SUBAGENTS:-false}"
         echo "  Agent OS commands: ${PROJECT_AGENT_OS_COMMANDS:-false}"
+        echo "  GitHub Copilot agents: ${PROJECT_GITHUB_COPILOT_AGENTS:-false}"
         echo "  Standards as Claude Code Skills: ${PROJECT_STANDARDS_AS_CLAUDE_CODE_SKILLS:-false}"
     else
         echo "  Config: Unable to read current configuration"
@@ -728,6 +748,7 @@ prompt_update_confirmation() {
     echo "  Claude Code commands: $EFFECTIVE_CLAUDE_CODE_COMMANDS"
     echo "  Use Claude Code subagents: $EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS"
     echo "  Agent OS commands: $EFFECTIVE_AGENT_OS_COMMANDS"
+    echo "  GitHub Copilot agents: $EFFECTIVE_GITHUB_COPILOT_AGENTS"
     echo "  Standards as Claude Code Skills: $EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS"
     echo ""
 
@@ -762,6 +783,9 @@ prompt_update_confirmation() {
     fi
     if [[ "$EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS" == "true" ]] || [[ -d "$PROJECT_DIR/.claude/skills" ]]; then
         echo "  - .claude/skills/ (Agent OS skills)"
+    fi
+    if [[ "$EFFECTIVE_GITHUB_COPILOT_AGENTS" == "true" ]] || [[ -d "$PROJECT_DIR/.github/agents" ]]; then
+        echo "  - .github/agents/ (GitHub Copilot agents)"
     fi
     echo ""
 
@@ -848,6 +872,22 @@ perform_update_cleanup() {
         fi
     fi
 
+    # Delete GitHub Copilot agents (only those from Agent OS)
+    if [[ -d "$PROJECT_DIR/.github/agents" ]]; then
+        while read file; do
+            if [[ "$file" == agents/*.md ]] && [[ "$file" != agents/templates/* ]]; then
+                local filename=$(basename "$file" .md)
+                local agent_file="$PROJECT_DIR/.github/agents/${filename}.agent.md"
+                if [[ -f "$agent_file" ]]; then
+                    print_status "Removing .github/agents/${filename}.agent.md"
+                    if [[ "$DRY_RUN" != "true" ]]; then
+                        rm -f "$agent_file"
+                    fi
+                fi
+            fi
+        done < <(get_profile_files "$PROJECT_PROFILE" "$BASE_DIR" "agents")
+    fi
+
     echo ""
     if [[ "$DRY_RUN" == "true" ]]; then
         print_success "Dry run: Cleanup would be complete!"
@@ -888,6 +928,7 @@ main() {
        [[ "$PROJECT_CLAUDE_CODE_COMMANDS" != "$EFFECTIVE_CLAUDE_CODE_COMMANDS" ]] || \
        [[ "$PROJECT_USE_CLAUDE_CODE_SUBAGENTS" != "$EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS" ]] || \
        [[ "$PROJECT_AGENT_OS_COMMANDS" != "$EFFECTIVE_AGENT_OS_COMMANDS" ]] || \
+       [[ "$PROJECT_GITHUB_COPILOT_AGENTS" != "$EFFECTIVE_GITHUB_COPILOT_AGENTS" ]] || \
        [[ "$PROJECT_STANDARDS_AS_CLAUDE_CODE_SKILLS" != "$EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS" ]]; then
         has_config_diff="true"
     fi
@@ -896,7 +937,7 @@ main() {
     if prompt_update_confirmation "$PROJECT_VERSION" "$has_version_diff" "$has_config_diff"; then
         # User confirmed - show any config validation warnings
         echo ""
-        validate_config "$EFFECTIVE_CLAUDE_CODE_COMMANDS" "$EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS" "$EFFECTIVE_AGENT_OS_COMMANDS" "$EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS" "$EFFECTIVE_PROFILE" "true"
+        validate_config "$EFFECTIVE_CLAUDE_CODE_COMMANDS" "$EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS" "$EFFECTIVE_AGENT_OS_COMMANDS" "$EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS" "$EFFECTIVE_PROFILE" "true" "$EFFECTIVE_GITHUB_COPILOT_AGENTS"
         echo ""
 
         # Perform cleanup and update
@@ -907,6 +948,7 @@ main() {
         PROJECT_CLAUDE_CODE_COMMANDS="$EFFECTIVE_CLAUDE_CODE_COMMANDS"
         PROJECT_USE_CLAUDE_CODE_SUBAGENTS="$EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS"
         PROJECT_AGENT_OS_COMMANDS="$EFFECTIVE_AGENT_OS_COMMANDS"
+        PROJECT_GITHUB_COPILOT_AGENTS="$EFFECTIVE_GITHUB_COPILOT_AGENTS"
         PROJECT_STANDARDS_AS_CLAUDE_CODE_SKILLS="$EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS"
 
         # Proceed with update

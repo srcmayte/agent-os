@@ -1185,6 +1185,7 @@ load_base_config() {
     BASE_CLAUDE_CODE_COMMANDS=$(get_yaml_value "$BASE_DIR/config.yml" "claude_code_commands" "true")
     BASE_USE_CLAUDE_CODE_SUBAGENTS=$(get_yaml_value "$BASE_DIR/config.yml" "use_claude_code_subagents" "true")
     BASE_AGENT_OS_COMMANDS=$(get_yaml_value "$BASE_DIR/config.yml" "agent_os_commands" "false")
+    BASE_GITHUB_COPILOT_AGENTS=$(get_yaml_value "$BASE_DIR/config.yml" "github_copilot_agents" "false")
     BASE_STANDARDS_AS_CLAUDE_CODE_SKILLS=$(get_yaml_value "$BASE_DIR/config.yml" "standards_as_claude_code_skills" "true")
 
     # Check for old config flags to set variables for validation
@@ -1200,6 +1201,7 @@ load_project_config() {
     PROJECT_CLAUDE_CODE_COMMANDS=$(get_project_config "$PROJECT_DIR" "claude_code_commands")
     PROJECT_USE_CLAUDE_CODE_SUBAGENTS=$(get_project_config "$PROJECT_DIR" "use_claude_code_subagents")
     PROJECT_AGENT_OS_COMMANDS=$(get_project_config "$PROJECT_DIR" "agent_os_commands")
+    PROJECT_GITHUB_COPILOT_AGENTS=$(get_project_config "$PROJECT_DIR" "github_copilot_agents")
     PROJECT_STANDARDS_AS_CLAUDE_CODE_SKILLS=$(get_project_config "$PROJECT_DIR" "standards_as_claude_code_skills")
 
     # Check for old config flags to set variables for validation
@@ -1216,10 +1218,11 @@ validate_config() {
     local standards_as_claude_code_skills=$4
     local profile=$5
     local print_warnings=${6:-true}  # Default to true if not provided
+    local github_copilot_agents=${7:-false}  # Default to false if not provided
 
     # Validate at least one output is enabled
-    if [[ "$claude_code_commands" != "true" ]] && [[ "$agent_os_commands" != "true" ]]; then
-        print_error "At least one of 'claude_code_commands' or 'agent_os_commands' must be true"
+    if [[ "$claude_code_commands" != "true" ]] && [[ "$agent_os_commands" != "true" ]] && [[ "$github_copilot_agents" != "true" ]]; then
+        print_error "At least one of 'claude_code_commands', 'agent_os_commands', or 'github_copilot_agents' must be true"
         exit 1
     fi
 
@@ -1256,6 +1259,7 @@ write_project_config() {
     local use_claude_code_subagents=$4
     local agent_os_commands=$5
     local standards_as_claude_code_skills=$6
+    local github_copilot_agents=${7:-false}
     local dest="$PROJECT_DIR/agent-os/config.yml"
 
     local config_content="version: $version
@@ -1270,6 +1274,7 @@ profile: $profile
 claude_code_commands: $claude_code_commands
 use_claude_code_subagents: $use_claude_code_subagents
 agent_os_commands: $agent_os_commands
+github_copilot_agents: $github_copilot_agents
 standards_as_claude_code_skills: $standards_as_claude_code_skills"
 
     local result=$(write_file "$config_content" "$dest")
@@ -1463,6 +1468,237 @@ install_improve_skills_command() {
 
         if [[ "$DRY_RUN" == "true" ]]; then
             INSTALLED_FILES+=("$dest")
+        fi
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# GitHub Copilot Agent Functions
+# -----------------------------------------------------------------------------
+
+# Map Claude Code tools to GitHub Copilot tools format
+# Claude Code: "Write, Read, Bash, WebFetch, Playwright"
+# GitHub Copilot: ["edit", "read", "terminal", "search", ...]
+map_tools_to_github_copilot() {
+    local tools_string=$1
+    local result=""
+    
+    # Return empty if no input
+    if [[ -z "$tools_string" ]]; then
+        return
+    fi
+    
+    # Remove "tools: " prefix if present
+    tools_string=$(echo "$tools_string" | sed 's/^tools:[[:space:]]*//')
+    
+    # Return empty if only whitespace after removing prefix
+    if [[ -z "${tools_string// }" ]]; then
+        return
+    fi
+    
+    # Split by comma and map each tool
+    IFS=',' read -ra TOOLS <<< "$tools_string"
+    for tool in "${TOOLS[@]}"; do
+        # Trim whitespace
+        tool=$(echo "$tool" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        
+        # Skip empty tools
+        if [[ -z "$tool" ]]; then
+            continue
+        fi
+        
+        case "$tool" in
+            "Write")
+                result="${result}  - edit"$'\n'
+                ;;
+            "Read")
+                result="${result}  - read"$'\n'
+                ;;
+            "Bash")
+                result="${result}  - terminal"$'\n'
+                ;;
+            "WebFetch")
+                result="${result}  - search"$'\n'
+                ;;
+            "Playwright")
+                result="${result}  - browser"$'\n'
+                ;;
+            *)
+                # For unknown tools, include as-is in lowercase
+                local lower_tool=$(echo "$tool" | tr '[:upper:]' '[:lower:]')
+                result="${result}  - ${lower_tool}"$'\n'
+                ;;
+        esac
+    done
+    
+    # Output without trailing newline
+    printf '%s' "$result" | head -c -1
+}
+
+# Compile agent file for GitHub Copilot format
+# Converts Claude Code agent format to GitHub Copilot .agent.md format
+compile_github_copilot_agent() {
+    local source_file=$1
+    local dest_file=$2
+    local base_dir=$3
+    local profile=$4
+    
+    # Validate required parameters
+    if [[ -z "$source_file" ]] || [[ -z "$dest_file" ]] || [[ -z "$base_dir" ]] || [[ -z "$profile" ]]; then
+        print_error "compile_github_copilot_agent: Missing required parameters"
+        return 1
+    fi
+    
+    # Validate source file exists
+    if [[ ! -f "$source_file" ]]; then
+        print_error "compile_github_copilot_agent: Source file not found: $source_file"
+        return 1
+    fi
+
+    local content=$(cat "$source_file")
+
+    # Process conditional compilation tags (same as Claude Code)
+    content=$(process_conditionals "$content" "${EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS:-true}" "${EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS:-true}" "false")
+
+    # Process workflow replacements
+    content=$(process_workflows "$content" "$base_dir" "$profile" "")
+
+    # Process standards replacements
+    local standards_refs=$(echo "$content" | grep -o '{{standards/[^}]*}}' | sort -u)
+
+    while IFS= read -r standards_ref; do
+        if [[ -z "$standards_ref" ]]; then
+            continue
+        fi
+
+        local standards_pattern=$(echo "$standards_ref" | sed 's/{{standards\///' | sed 's/}}//')
+        local standards_list=$(process_standards "$content" "$base_dir" "$profile" "$standards_pattern")
+
+        # Create temp files for the replacement
+        local temp_content=$(mktemp)
+        local temp_standards=$(mktemp)
+        echo "$content" > "$temp_content"
+        echo "$standards_list" > "$temp_standards"
+
+        # Use perl to replace without escaping newlines
+        content=$(perl -e '
+            use strict;
+            use warnings;
+
+            my $ref = $ARGV[0];
+            my $standards_file = $ARGV[1];
+            my $content_file = $ARGV[2];
+
+            # Read standards list
+            open(my $fh, "<", $standards_file) or die $!;
+            my $standards = do { local $/; <$fh> };
+            close($fh);
+            chomp $standards;
+
+            # Read content
+            open($fh, "<", $content_file) or die $!;
+            my $content = do { local $/; <$fh> };
+            close($fh);
+
+            # Do the replacement - use quotemeta on entire reference
+            my $pattern = quotemeta($ref);
+            $content =~ s/$pattern/$standards/g;
+
+            print $content;
+        ' "$standards_ref" "$temp_standards" "$temp_content")
+
+        rm -f "$temp_content" "$temp_standards"
+    done <<< "$standards_refs"
+
+    # Extract and transform YAML frontmatter for GitHub Copilot format
+    # GitHub Copilot uses: name, description, tools (array), target
+    # Claude Code uses: name, description, tools (string), color, model
+    
+    # Check if content starts with frontmatter
+    local first_line=$(echo "$content" | head -n1)
+    if [[ "$first_line" == "---" ]]; then
+        # Extract frontmatter (everything between first and second ---)
+        local frontmatter=$(echo "$content" | awk 'BEGIN{count=0} /^---$/{count++; next} count==1{print}')
+        # Extract body (everything after second ---)
+        local body=$(echo "$content" | awk 'BEGIN{count=0} /^---$/{count++; next} count>=2{print}')
+        
+        # Extract values from frontmatter
+        local name=$(echo "$frontmatter" | grep "^name:" | sed 's/^name:[[:space:]]*//')
+        local description=$(echo "$frontmatter" | grep "^description:" | sed 's/^description:[[:space:]]*//')
+        local tools_line=$(echo "$frontmatter" | grep "^tools:")
+        
+        # Map tools to GitHub Copilot format
+        local mapped_tools=""
+        if [[ -n "$tools_line" ]]; then
+            mapped_tools=$(map_tools_to_github_copilot "$tools_line")
+        fi
+        
+        # Build new GitHub Copilot frontmatter
+        local new_frontmatter="---
+name: $name
+description: $description
+target: vscode"
+        
+        if [[ -n "$mapped_tools" ]]; then
+            new_frontmatter="${new_frontmatter}
+tools:
+$mapped_tools"
+        fi
+        
+        new_frontmatter="${new_frontmatter}
+---"
+        
+        # Combine frontmatter and body (body starts with newline from original)
+        content="${new_frontmatter}
+${body}"
+    fi
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "$dest_file"
+    else
+        ensure_dir "$(dirname "$dest_file")"
+        echo "$content" > "$dest_file"
+        print_verbose "Compiled GitHub Copilot agent: $dest_file"
+    fi
+}
+
+# Install GitHub Copilot agents to .github/agents/
+install_github_copilot_agents() {
+    if [[ "$EFFECTIVE_GITHUB_COPILOT_AGENTS" != "true" ]]; then
+        return 0
+    fi
+
+    if [[ "$DRY_RUN" != "true" ]]; then
+        print_status "Installing GitHub Copilot agents..."
+    fi
+
+    local agents_count=0
+    local target_dir="$PROJECT_DIR/.github/agents"
+    
+    mkdir -p "$target_dir"
+
+    while read file; do
+        # Include all agent files (flatten structure - no subfolders in output)
+        if [[ "$file" == agents/*.md ]] && [[ "$file" != agents/templates/* ]]; then
+            local source=$(get_profile_file "$EFFECTIVE_PROFILE" "$file" "$BASE_DIR")
+            if [[ -f "$source" ]]; then
+                # Get just the filename and change extension to .agent.md
+                local filename=$(basename "$file" .md)
+                local dest="$target_dir/${filename}.agent.md"
+                
+                # Compile for GitHub Copilot format
+                local compiled=$(compile_github_copilot_agent "$source" "$dest" "$BASE_DIR" "$EFFECTIVE_PROFILE")
+                if [[ "$DRY_RUN" == "true" ]]; then
+                    INSTALLED_FILES+=("$dest")
+                fi
+                ((agents_count++)) || true
+            fi
+        fi
+    done < <(get_profile_files "$EFFECTIVE_PROFILE" "$BASE_DIR" "agents")
+
+    if [[ "$DRY_RUN" != "true" ]]; then
+        if [[ $agents_count -gt 0 ]]; then
+            echo "✓ Installed $agents_count GitHub Copilot agents in .github/agents/"
         fi
     fi
 }
