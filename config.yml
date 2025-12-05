@@ -25,6 +25,16 @@ agent_os_commands: false
 
 
 # ================================================
+# Do you use GitHub Copilot (VS Code extension or GitHub CLI)?
+# Set to true to install agents in your project's .github/agents/ folder
+# These agents work with both the GitHub Copilot VS Code extension and GitHub Copilot CLI
+#
+# Override this default when running project-install.sh by using the flag --github-copilot-agents true/false
+# ================================================
+github_copilot_agents: false
+
+
+# ================================================
 # Do you want Claude Code to use subagents?
 # Set to true to install agents in .claude/agents/agent-os/ and have commands delegate to them
 # Requires claude_code_commands: true

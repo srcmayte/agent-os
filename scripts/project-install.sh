@@ -25,6 +25,7 @@ PROFILE=""
 CLAUDE_CODE_COMMANDS=""
 USE_CLAUDE_CODE_SUBAGENTS=""
 AGENT_OS_COMMANDS=""
+GITHUB_COPILOT_AGENTS=""
 STANDARDS_AS_CLAUDE_CODE_SKILLS=""
 RE_INSTALL="false"
 OVERWRITE_ALL="false"
@@ -48,6 +49,7 @@ Options:
     --claude-code-commands [BOOL]            Install Claude Code commands (default: from config.yml)
     --use-claude-code-subagents [BOOL]       Use Claude Code subagents (default: from config.yml)
     --agent-os-commands [BOOL]               Install agent-os commands (default: from config.yml)
+    --github-copilot-agents [BOOL]           Install GitHub Copilot agents (default: from config.yml)
     --standards-as-claude-code-skills [BOOL] Use Claude Code Skills for standards (default: from config.yml)
     --re-install                             Delete and reinstall Agent OS
     --overwrite-all                          Overwrite all existing files during update
@@ -64,6 +66,7 @@ Examples:
     $0
     $0 --profile rails
     $0 --claude-code-commands true --use-claude-code-subagents true
+    $0 --github-copilot-agents true --dry-run
     $0 --agent-os-commands true --dry-run
 
 EOF
@@ -94,6 +97,10 @@ parse_arguments() {
                 ;;
             --agent-os-commands)
                 read AGENT_OS_COMMANDS shift_count <<< "$(parse_bool_flag "$AGENT_OS_COMMANDS" "$2")"
+                shift $shift_count
+                ;;
+            --github-copilot-agents)
+                read GITHUB_COPILOT_AGENTS shift_count <<< "$(parse_bool_flag "$GITHUB_COPILOT_AGENTS" "$2")"
                 shift $shift_count
                 ;;
             --standards-as-claude-code-skills)
@@ -152,17 +159,19 @@ load_configuration() {
     EFFECTIVE_CLAUDE_CODE_COMMANDS="${CLAUDE_CODE_COMMANDS:-$BASE_CLAUDE_CODE_COMMANDS}"
     EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS="${USE_CLAUDE_CODE_SUBAGENTS:-$BASE_USE_CLAUDE_CODE_SUBAGENTS}"
     EFFECTIVE_AGENT_OS_COMMANDS="${AGENT_OS_COMMANDS:-$BASE_AGENT_OS_COMMANDS}"
+    EFFECTIVE_GITHUB_COPILOT_AGENTS="${GITHUB_COPILOT_AGENTS:-$BASE_GITHUB_COPILOT_AGENTS}"
     EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS="${STANDARDS_AS_CLAUDE_CODE_SKILLS:-$BASE_STANDARDS_AS_CLAUDE_CODE_SKILLS}"
     EFFECTIVE_VERSION="$BASE_VERSION"
 
     # Validate configuration using common function (may override EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS if dependency not met)
-    validate_config "$EFFECTIVE_CLAUDE_CODE_COMMANDS" "$EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS" "$EFFECTIVE_AGENT_OS_COMMANDS" "$EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS" "$EFFECTIVE_PROFILE"
+    validate_config "$EFFECTIVE_CLAUDE_CODE_COMMANDS" "$EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS" "$EFFECTIVE_AGENT_OS_COMMANDS" "$EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS" "$EFFECTIVE_PROFILE" "true" "$EFFECTIVE_GITHUB_COPILOT_AGENTS"
 
     print_verbose "Configuration loaded:"
     print_verbose "  Profile: $EFFECTIVE_PROFILE"
     print_verbose "  Claude Code commands: $EFFECTIVE_CLAUDE_CODE_COMMANDS"
     print_verbose "  Use Claude Code subagents: $EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS"
     print_verbose "  Agent OS commands: $EFFECTIVE_AGENT_OS_COMMANDS"
+    print_verbose "  GitHub Copilot agents: $EFFECTIVE_GITHUB_COPILOT_AGENTS"
     print_verbose "  Standards as Claude Code Skills: $EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS"
 }
 
@@ -375,7 +384,8 @@ create_agent_os_folder() {
     # Create the configuration file
     local config_file=$(write_project_config "$EFFECTIVE_VERSION" "$EFFECTIVE_PROFILE" \
         "$EFFECTIVE_CLAUDE_CODE_COMMANDS" "$EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS" \
-        "$EFFECTIVE_AGENT_OS_COMMANDS" "$EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS")
+        "$EFFECTIVE_AGENT_OS_COMMANDS" "$EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS" \
+        "$EFFECTIVE_GITHUB_COPILOT_AGENTS")
     if [[ "$DRY_RUN" == "true" && -n "$config_file" ]]; then
         INSTALLED_FILES+=("$config_file")
     fi
@@ -402,6 +412,7 @@ perform_installation() {
     echo -e "  Use Claude Code subagents: ${YELLOW}$EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS${NC}"
     echo -e "  Standards as Claude Code Skills: ${YELLOW}$EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS${NC}"
     echo -e "  Agent OS commands: ${YELLOW}$EFFECTIVE_AGENT_OS_COMMANDS${NC}"
+    echo -e "  GitHub Copilot agents: ${YELLOW}$EFFECTIVE_GITHUB_COPILOT_AGENTS${NC}"
     echo ""
 
     # In dry run mode, just collect files silently
@@ -425,6 +436,11 @@ perform_installation() {
         # Install agent-os commands if enabled
         if [[ "$EFFECTIVE_AGENT_OS_COMMANDS" == "true" ]]; then
             install_agent_os_commands
+        fi
+
+        # Install GitHub Copilot agents if enabled
+        if [[ "$EFFECTIVE_GITHUB_COPILOT_AGENTS" == "true" ]]; then
+            install_github_copilot_agents
         fi
 
         echo ""
@@ -463,6 +479,12 @@ perform_installation() {
             install_agent_os_commands
             echo ""
         fi
+
+        # Install GitHub Copilot agents if enabled
+        if [[ "$EFFECTIVE_GITHUB_COPILOT_AGENTS" == "true" ]]; then
+            install_github_copilot_agents
+            echo ""
+        fi
     fi
 
     if [[ "$DRY_RUN" == "true" ]]; then
@@ -489,11 +511,14 @@ handle_reinstallation() {
     print_warning "This will DELETE your current agent-os/ folder and reinstall from scratch."
     echo ""
 
-    # Check for Claude Code files
-    if [[ -d "$PROJECT_DIR/.claude/agents/agent-os" ]] || [[ -d "$PROJECT_DIR/.claude/commands/agent-os" ]]; then
+    # Check for Claude Code files and GitHub Copilot agents
+    local has_files_to_delete="false"
+    if [[ -d "$PROJECT_DIR/.claude/agents/agent-os" ]] || [[ -d "$PROJECT_DIR/.claude/commands/agent-os" ]] || [[ -d "$PROJECT_DIR/.github/agents" ]]; then
+        has_files_to_delete="true"
         print_warning "This will also DELETE:"
         [[ -d "$PROJECT_DIR/.claude/agents/agent-os" ]] && echo "  - .claude/agents/agent-os/"
         [[ -d "$PROJECT_DIR/.claude/commands/agent-os" ]] && echo "  - .claude/commands/agent-os/"
+        [[ -d "$PROJECT_DIR/.github/agents" ]] && echo "  - .github/agents/ (GitHub Copilot agents)"
         echo ""
     fi
 
@@ -509,6 +534,19 @@ handle_reinstallation() {
         rm -rf "$PROJECT_DIR/agent-os"
         rm -rf "$PROJECT_DIR/.claude/agents/agent-os"
         rm -rf "$PROJECT_DIR/.claude/commands/agent-os"
+        # Remove GitHub Copilot agent files (only .agent.md files from agent-os)
+        if [[ -d "$PROJECT_DIR/.github/agents" ]]; then
+            # Get agent filenames from profiles to only delete agent-os agents
+            while read file; do
+                if [[ "$file" == agents/*.md ]] && [[ "$file" != agents/templates/* ]]; then
+                    local filename=$(basename "$file" .md)
+                    local agent_file="$PROJECT_DIR/.github/agents/${filename}.agent.md"
+                    if [[ -f "$agent_file" ]]; then
+                        rm -f "$agent_file"
+                    fi
+                fi
+            done < <(get_profile_files "$EFFECTIVE_PROFILE" "$BASE_DIR" "agents")
+        fi
         echo "✓ Existing installation removed"
         echo ""
     fi
