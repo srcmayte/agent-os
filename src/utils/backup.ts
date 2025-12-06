@@ -74,14 +74,19 @@ function getExistingBackups(baseDir: string): string[] {
 
 /**
  * Purge old backups, keeping only the most recent maxBackups
+ * 
+ * This function is called BEFORE creating a new backup, so we need to account
+ * for the new backup that will be created. If we have N existing backups and
+ * want to keep at most M backups total, we need to delete N - (M - 1) = N - M + 1
+ * of the oldest backups to make room for the new one.
  */
 function purgeOldBackups(baseDir: string, maxBackups: number): void {
   const existingBackups = getExistingBackups(baseDir);
   
-  // We need to delete the oldest ones if we have too many
-  // After creating a new backup, we'll have existingBackups.length + 1
-  // So we need to keep maxBackups - 1 old ones
-  const toDelete = existingBackups.slice(0, Math.max(0, existingBackups.length - maxBackups + 1));
+  // Calculate how many old backups to delete to make room for the new one
+  // If we have 10 existing and max is 10, delete 10 - 10 + 1 = 1 (the oldest)
+  const numToDelete = Math.max(0, existingBackups.length - maxBackups + 1);
+  const toDelete = existingBackups.slice(0, numToDelete);
 
   for (const backupPath of toDelete) {
     printVerbose(`Removing old backup: ${backupPath}`);

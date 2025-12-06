@@ -484,10 +484,10 @@ async function checkAndPromptForChanges(
 
 // Legacy exports for backwards compatibility
 export const createProjectInstallCommand = () => {
-  console.warn('createProjectInstallCommand is deprecated. Use createProjectCommand instead.');
+  printWarning('createProjectInstallCommand is deprecated. Use createProjectCommand instead.');
   return createProjectCommand();
 };
 export const createProjectUpdateCommand = () => {
-  console.warn('createProjectUpdateCommand is deprecated. Use createProjectCommand instead.');
+  printWarning('createProjectUpdateCommand is deprecated. Use createProjectCommand instead.');
   return createProjectCommand();
 };
