@@ -13,7 +13,7 @@ import { dirname, join } from 'path';
 import {
   createInstallCommand,
   createProjectCommand,
-  createCreateProfileCommand,
+  createProfileCommand,
 } from './commands/index.js';
 
 // Get package version
@@ -53,12 +53,12 @@ function createProgram(): Command {
   // Add commands
   // `agent-os install` - Install Agent OS base to ~/agent-os
   program.addCommand(createInstallCommand());
-  
+
   // `agent-os project setup|sync` - Project-related commands
   program.addCommand(createProjectCommand());
-  
-  // `agent-os create-profile` - Create a new profile
-  program.addCommand(createCreateProfileCommand());
+
+  // `agent-os profile create` - Profile management commands
+  program.addCommand(createProfileCommand());
 
   // Add default action for no subcommand
   program.action(() => {

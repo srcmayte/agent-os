@@ -1,4 +1,4 @@
 // Command exports
-export { createInstallCommand } from './base-install.js';
+export { createInstallCommand } from './base/index.js';
 export { createProjectCommand } from './project/index.js';
-export { createCreateProfileCommand } from './create-profile.js';
+export { createProfileCommand } from './profile/index.js';

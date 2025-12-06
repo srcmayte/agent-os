@@ -5,8 +5,7 @@
 
 import { Command } from 'commander';
 import { existsSync, rmSync } from 'fs';
-import { join, dirname } from 'path';
-import { homedir } from 'os';
+import { join } from 'path';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import {
@@ -18,25 +17,25 @@ import {
   setVerbose,
   Colors,
   printCompletion,
-} from '../utils/output.js';
-import { getYamlValue } from '../utils/yaml.js';
-import { ensureDir, writeFile, matchesExclusionPattern } from '../utils/filesystem.js';
-import { createTimestampedBackup } from '../utils/backup.js';
-import type { BaseInstallOptions } from '../types/index.js';
-
-// Repository configuration - can be overridden by environment variable
-const REPO_URL = process.env.AGENT_OS_REPO_URL || 'https://github.com/srcmayte/agent-os';
-const BASE_DIR = join(homedir(), 'agent-os');
-
-// Files to exclude from installation
-const EXCLUSIONS = ['scripts/base-install.sh', 'old-versions/*', '.git*', '.github/*'];
+} from '../../utils/output.js';
+import { getYamlValue } from '../../utils/yaml.js';
+import { ensureDir } from '../../utils/filesystem.js';
+import { createTimestampedBackup } from '../../utils/backup.js';
+import type { BaseInstallOptions } from '../../types/index.js';
+import {
+  REPO_URL,
+  BASE_DIR,
+  getLatestVersion,
+  downloadFile,
+  downloadFilesFromGitHub,
+  downloadAllFiles,
+} from './shared.js';
 
 /**
  * Create install command (base installation)
  */
-export function createInstallCommand(): Command {
+export function createBaseInstallCommand(): Command {
   const command = new Command('install')
-    .aliases(['init', 'setup'])
     .description('Install Agent OS base installation to ~/agent-os')
     .option('-v, --verbose', 'Show verbose output')
     .action(async (options: BaseInstallOptions) => {
@@ -82,23 +81,6 @@ async function handleExistingInstallation(): Promise<void> {
 }
 
 /**
- * Get latest version from GitHub
- */
-async function getLatestVersion(): Promise<string> {
-  try {
-    const configUrl = `${REPO_URL}/raw/main/config.yml`;
-    const response = await fetch(configUrl);
-    if (!response.ok) return '';
-
-    const content = await response.text();
-    const match = content.match(/^version:\s*(.+)$/m);
-    return match ? match[1].trim() : '';
-  } catch {
-    return '';
-  }
-}
-
-/**
  * Prompt for overwrite choice - supports multi-select for specific updates
  */
 async function promptOverwriteChoice(
@@ -133,7 +115,7 @@ async function promptOverwriteChoice(
       message: 'Select an option:',
       choices: [
         {
-          name: '1) Full update - Updates profiles/default/*, scripts/*, CHANGELOG.md, and version',
+          name: '1) Full update - Updates profiles/default/*, CHANGELOG.md, and version',
           value: 'full',
         },
         {
@@ -341,103 +323,15 @@ async function performFreshInstallation(): Promise<void> {
 
   console.log('');
   printSuccess('Agent OS has been successfully installed!');
-  
+
   printCompletion('Installation complete!', [
     "Customize your profile's standards in ~/agent-os/profiles/default/standards",
     'Navigate to a project directory: cd path/to/project-directory',
     'Install Agent OS in your project: agent-os project setup',
   ]);
-  
-  console.log(`${Colors.GREEN}Visit the docs for guides on how to use Agent OS: https://buildermethods.com/agent-os${Colors.RESET}`);
+
+  console.log(
+    `${Colors.GREEN}Visit the docs for guides on how to use Agent OS: https://buildermethods.com/agent-os${Colors.RESET}`
+  );
   console.log('');
-}
-
-/**
- * Get the GitHub API URL for the repo tree
- */
-function getRepoApiUrl(): string {
-  // Extract owner/repo from the REPO_URL
-  const match = REPO_URL.match(/github\.com\/([^/]+)\/([^/]+)/);
-  if (match) {
-    return `https://api.github.com/repos/${match[1]}/${match[2]}/git/trees/main?recursive=true`;
-  }
-  // Fallback to srcmayte repo
-  return 'https://api.github.com/repos/srcmayte/agent-os/git/trees/main?recursive=true';
-}
-
-/**
- * Get all files from GitHub repo using the tree API
- */
-async function getRepoFiles(): Promise<string[]> {
-  const treeUrl = getRepoApiUrl();
-
-  const response = await fetch(treeUrl);
-  if (!response.ok) {
-    throw new Error('Failed to fetch repository file list');
-  }
-
-  const data = (await response.json()) as { tree: Array<{ path: string; type: string }> };
-  const files: string[] = [];
-
-  for (const item of data.tree) {
-    if (item.type === 'blob' && !matchesExclusionPattern(item.path, EXCLUSIONS)) {
-      files.push(item.path);
-    }
-  }
-
-  return files;
-}
-
-/**
- * Download a file from GitHub
- */
-async function downloadFile(relativePath: string, destPath: string): Promise<boolean> {
-  const fileUrl = `${REPO_URL}/raw/main/${relativePath}`;
-
-  try {
-    const response = await fetch(fileUrl);
-    if (!response.ok) return false;
-
-    const content = await response.text();
-    ensureDir(dirname(destPath));
-    writeFile(content, destPath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Download files from GitHub matching a prefix
- */
-async function downloadFilesFromGitHub(prefix: string): Promise<string[]> {
-  const allFiles = await getRepoFiles();
-  const matchingFiles = allFiles.filter((f) => f.startsWith(prefix));
-  const downloaded: string[] = [];
-
-  for (const file of matchingFiles) {
-    const destPath = join(BASE_DIR, file);
-    if (await downloadFile(file, destPath)) {
-      downloaded.push(file);
-    }
-  }
-
-  return downloaded;
-}
-
-/**
- * Download all files from repository
- */
-async function downloadAllFiles(): Promise<number> {
-  const allFiles = await getRepoFiles();
-  let count = 0;
-
-  for (const file of allFiles) {
-    const destPath = join(BASE_DIR, file);
-    if (await downloadFile(file, destPath)) {
-      count++;
-    }
-  }
-
-  return count;
 }

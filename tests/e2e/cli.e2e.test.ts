@@ -51,7 +51,7 @@ describe('CLI E2E Tests', () => {
       expect(stdout).toContain('agent-os');
       expect(stdout).toContain('install');
       expect(stdout).toContain('project');
-      expect(stdout).toContain('create-profile');
+      expect(stdout).toContain('profile');
     });
 
     test('should display install command help', () => {
@@ -84,8 +84,8 @@ describe('CLI E2E Tests', () => {
       expect(stdout).toContain('--dry-run');
     });
 
-    test('should display create-profile help', () => {
-      const { stdout, exitCode } = runCli(['create-profile', '--help']);
+    test('should display profile create help', () => {
+      const { stdout, exitCode } = runCli(['profile', 'create', '--help']);
       expect(exitCode).toBe(0);
       expect(stdout).toContain('Create a new Agent OS profile');
       expect(stdout).toContain('--name');
@@ -94,24 +94,6 @@ describe('CLI E2E Tests', () => {
   });
 
   describe('CLI aliases', () => {
-    test('should recognize "init" alias for install', () => {
-      const { stdout, exitCode } = runCli(['init', '--help']);
-      expect(exitCode).toBe(0);
-      expect(stdout).toContain('Install Agent OS base installation');
-    });
-
-    test('should recognize "setup" alias for install', () => {
-      const { stdout, exitCode } = runCli(['setup', '--help']);
-      expect(exitCode).toBe(0);
-      expect(stdout).toContain('Install Agent OS base installation');
-    });
-
-    test('should recognize "profile" alias for create-profile', () => {
-      const { stdout, exitCode } = runCli(['profile', '--help']);
-      expect(exitCode).toBe(0);
-      expect(stdout).toContain('Create a new Agent OS profile');
-    });
-
     test('should recognize project sync update alias', () => {
       const { stdout, exitCode } = runCli(['project', 'update', '--help']);
       expect(exitCode).toBe(0);
@@ -257,7 +239,7 @@ standards_as_claude_code_skills: false
     });
   });
 
-  describe('create-profile command', () => {
+  describe('profile create command', () => {
     let tempDir: string;
     let baseDir: string;
 
@@ -276,7 +258,7 @@ standards_as_claude_code_skills: false
 
     test('should fail when base installation does not exist', () => {
       const nonExistentDir = join(tempDir, 'non-existent');
-      const { exitCode } = runCli(['create-profile', '--name', 'test-profile'], { 
+      const { exitCode } = runCli(['profile', 'create', '--name', 'test-profile'], { 
         env: { HOME: nonExistentDir }
       });
       
@@ -284,7 +266,7 @@ standards_as_claude_code_skills: false
     });
 
     test('should show help with correct profile name examples', () => {
-      const { stdout, exitCode } = runCli(['create-profile', '--help']);
+      const { stdout, exitCode } = runCli(['profile', 'create', '--help']);
       
       expect(exitCode).toBe(0);
       expect(stdout).toContain('--name');

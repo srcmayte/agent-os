@@ -125,20 +125,18 @@ Options:
 
 Aliases: `update`, `refresh`
 
-### `agent-os create-profile`
+### `agent-os profile create`
 
 Creates a new Agent OS profile.
 
 ```bash
-agent-os create-profile [options]
+agent-os profile create [options]
 
 Options:
   -n, --name <name>              Profile name
   -i, --inherits-from <profile>  Inherit from existing profile
   -c, --copy-from <profile>      Copy from existing profile
 ```
-
-Aliases: `profile`, `new-profile`
 
 ---
 
@@ -179,8 +177,13 @@ npm run build
 ```
 src/
 ├── commands/           # CLI command handlers
-│   ├── base-install.ts   # Base installation command
-│   ├── create-profile.ts # Profile creation command
+│   ├── base/             # Base installation commands
+│   │   ├── index.ts        # Base command exports
+│   │   ├── install.ts      # Base install command
+│   │   └── shared.ts       # Shared utilities
+│   ├── profile/          # Profile commands
+│   │   ├── index.ts        # Profile command group
+│   │   └── create.ts       # Profile create command
 │   ├── project/          # Project commands directory
 │   │   ├── index.ts        # Project command group
 │   │   ├── setup.ts        # Project setup command

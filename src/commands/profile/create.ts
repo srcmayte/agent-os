@@ -1,5 +1,5 @@
 /**
- * Create Profile Command
+ * Profile Create Command
  * Creates a new profile for Agent OS
  */
 
@@ -14,18 +14,17 @@ import {
   printWarning,
   Colors,
   printCompletion,
-} from '../utils/output.js';
-import { normalizeName } from '../utils/filesystem.js';
-import { getBaseDir, requireBaseInstallation, requireDirectory } from '../lib/config.js';
-import { getAvailableProfiles } from '../lib/profile.js';
-import type { CreateProfileOptions } from '../types/index.js';
+} from '../../utils/output.js';
+import { normalizeName } from '../../utils/filesystem.js';
+import { getBaseDir, requireBaseInstallation, requireDirectory } from '../../lib/config.js';
+import { getAvailableProfiles } from '../../lib/profile.js';
+import type { CreateProfileOptions } from '../../types/index.js';
 
 /**
- * Create create-profile command
+ * Create profile create command
  */
-export function createCreateProfileCommand(): Command {
-  const command = new Command('create-profile')
-    .aliases(['profile', 'new-profile'])
+export function createProfileCreateCommand(): Command {
+  const command = new Command('create')
     .description('Create a new Agent OS profile')
     .option('-n, --name <name>', 'Profile name')
     .option('-i, --inherits-from <profile>', 'Inherit from existing profile')
@@ -98,8 +97,10 @@ async function runCreateProfile(options: CreateProfileOptions): Promise<void> {
     'Customize standards, workflows, and configurations in your profile',
     `Install Agent OS in a project using this profile: agent-os project setup --profile ${profileName}`,
   ]);
-  
-  console.log(`${Colors.GREEN}Visit the docs on customizing your profile: https://buildermethods.com/agent-os/profiles${Colors.RESET}`);
+
+  console.log(
+    `${Colors.GREEN}Visit the docs on customizing your profile: https://buildermethods.com/agent-os/profiles${Colors.RESET}`
+  );
   console.log('');
   console.log(`${Colors.GREEN}════════════════════════════════════════════${Colors.RESET}`);
   console.log('');
