@@ -48,31 +48,38 @@ describe('CLI E2E Tests', () => {
       const { stdout, exitCode } = runCli(['--help']);
       expect(exitCode).toBe(0);
       expect(stdout).toContain('agent-os');
-      expect(stdout).toContain('base-install');
-      expect(stdout).toContain('project-install');
-      expect(stdout).toContain('project-update');
+      expect(stdout).toContain('install');
+      expect(stdout).toContain('project');
       expect(stdout).toContain('create-profile');
     });
 
-    test('should display base-install help', () => {
-      const { stdout, exitCode } = runCli(['base-install', '--help']);
+    test('should display install command help', () => {
+      const { stdout, exitCode } = runCli(['install', '--help']);
       expect(exitCode).toBe(0);
       expect(stdout).toContain('Install Agent OS base installation');
       expect(stdout).toContain('--verbose');
     });
 
-    test('should display project-install help', () => {
-      const { stdout, exitCode } = runCli(['project-install', '--help']);
+    test('should display project command help', () => {
+      const { stdout, exitCode } = runCli(['project', '--help']);
       expect(exitCode).toBe(0);
-      expect(stdout).toContain('Install Agent OS into the current project');
+      expect(stdout).toContain('Project-related commands');
+      expect(stdout).toContain('setup');
+      expect(stdout).toContain('sync');
+    });
+
+    test('should display project setup help', () => {
+      const { stdout, exitCode } = runCli(['project', 'setup', '--help']);
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain('Set up Agent OS');
       expect(stdout).toContain('--profile');
       expect(stdout).toContain('--dry-run');
     });
 
-    test('should display project-update help', () => {
-      const { stdout, exitCode } = runCli(['project-update', '--help']);
+    test('should display project sync help', () => {
+      const { stdout, exitCode } = runCli(['project', 'sync', '--help']);
       expect(exitCode).toBe(0);
-      expect(stdout).toContain('Update Agent OS installation');
+      expect(stdout).toContain('Sync/update Agent OS');
       expect(stdout).toContain('--dry-run');
     });
 
@@ -86,20 +93,14 @@ describe('CLI E2E Tests', () => {
   });
 
   describe('CLI aliases', () => {
-    test('should recognize "install" alias for project-install', () => {
-      const { stdout, exitCode } = runCli(['install', '--help']);
-      expect(exitCode).toBe(0);
-      expect(stdout).toContain('Install Agent OS into the current project');
-    });
-
-    test('should recognize "update" alias for project-update', () => {
-      const { stdout, exitCode } = runCli(['update', '--help']);
-      expect(exitCode).toBe(0);
-      expect(stdout).toContain('Update Agent OS installation');
-    });
-
-    test('should recognize "init" alias for base-install', () => {
+    test('should recognize "init" alias for install', () => {
       const { stdout, exitCode } = runCli(['init', '--help']);
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain('Install Agent OS base installation');
+    });
+
+    test('should recognize "setup" alias for install', () => {
+      const { stdout, exitCode } = runCli(['setup', '--help']);
       expect(exitCode).toBe(0);
       expect(stdout).toContain('Install Agent OS base installation');
     });
@@ -109,9 +110,15 @@ describe('CLI E2E Tests', () => {
       expect(exitCode).toBe(0);
       expect(stdout).toContain('Create a new Agent OS profile');
     });
+
+    test('should recognize project sync update alias', () => {
+      const { stdout, exitCode } = runCli(['project', 'update', '--help']);
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain('Sync/update Agent OS');
+    });
   });
 
-  describe('project-install validation', () => {
+  describe('project setup validation', () => {
     let tempDir: string;
 
     beforeEach(() => {
@@ -123,7 +130,7 @@ describe('CLI E2E Tests', () => {
     });
 
     test('should fail when base installation does not exist', () => {
-      const { exitCode } = runCli(['project-install'], { cwd: tempDir });
+      const { exitCode } = runCli(['project', 'setup'], { cwd: tempDir });
       // Should exit with error about missing base installation
       expect(exitCode).not.toBe(0);
     });

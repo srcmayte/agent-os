@@ -4,7 +4,7 @@
  */
 
 import { Command } from 'commander';
-import { existsSync, rmSync, cpSync, chmodSync, readdirSync, statSync } from 'fs';
+import { existsSync, rmSync, chmodSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { homedir } from 'os';
 import ora from 'ora';
@@ -19,21 +19,22 @@ import {
   Colors,
 } from '../utils/output.js';
 import { getYamlValue } from '../utils/yaml.js';
-import { ensureDir, writeFile } from '../utils/filesystem.js';
-import type { BaseInstallOptions, UpdateChoice } from '../types/index.js';
+import { ensureDir, writeFile, matchesExclusionPattern } from '../utils/filesystem.js';
+import { createTimestampedBackup } from '../utils/backup.js';
+import type { BaseInstallOptions } from '../types/index.js';
 
-// Repository configuration
-const REPO_URL = 'https://github.com/srcmayte/agent-os';
+// Repository configuration - can be overridden by environment variable
+const REPO_URL = process.env.AGENT_OS_REPO_URL || 'https://github.com/srcmayte/agent-os';
 const BASE_DIR = join(homedir(), 'agent-os');
 
 // Files to exclude from installation
 const EXCLUSIONS = ['scripts/base-install.sh', 'old-versions/*', '.git*', '.github/*'];
 
 /**
- * Create base-install command
+ * Create install command (base installation)
  */
-export function createBaseInstallCommand(): Command {
-  const command = new Command('base-install')
+export function createInstallCommand(): Command {
+  const command = new Command('install')
     .aliases(['init', 'setup'])
     .description('Install Agent OS base installation to ~/agent-os')
     .option('-v, --verbose', 'Show verbose output')
@@ -42,6 +43,11 @@ export function createBaseInstallCommand(): Command {
     });
 
   return command;
+}
+
+// Keep legacy command for backwards compatibility
+export function createBaseInstallCommand(): Command {
+  return createInstallCommand();
 }
 
 /**
@@ -97,7 +103,7 @@ async function getLatestVersion(): Promise<string> {
 }
 
 /**
- * Prompt for overwrite choice
+ * Prompt for overwrite choice - supports multi-select for specific updates
  */
 async function promptOverwriteChoice(
   currentVersion: string,
@@ -124,71 +130,49 @@ async function promptOverwriteChoice(
   printStatus('What would you like to do?');
   console.log('');
 
-  const { choice } = await inquirer.prompt([
+  const { action } = await inquirer.prompt([
     {
       type: 'list',
-      name: 'choice',
+      name: 'action',
       message: 'Select an option:',
       choices: [
         {
           name: '1) Full update - Updates profiles/default/*, scripts/*, CHANGELOG.md, and version',
-          value: 1,
+          value: 'full',
         },
         {
-          name: '2) Update default profile only - Updates profiles/default/*',
-          value: 2,
+          name: '2) Select specific updates - Choose which components to update',
+          value: 'select',
         },
         {
-          name: '3) Update scripts only - Updates scripts/*',
-          value: 3,
+          name: '3) Delete & reinstall fresh - Backs up and reinstalls everything',
+          value: 'reinstall',
         },
         {
-          name: '4) Update config.yml only - Updates config.yml',
-          value: 4,
-        },
-        {
-          name: '5) Delete & reinstall fresh - Backs up and reinstalls everything',
-          value: 5,
-        },
-        {
-          name: '6) Cancel and abort',
-          value: 6,
+          name: '4) Cancel and abort',
+          value: 'cancel',
         },
       ],
     },
   ]);
 
-  switch (choice as UpdateChoice) {
-    case 1:
+  switch (action) {
+    case 'full':
       console.log('');
       printStatus('Performing full update...');
-      await createBackup();
+      createTimestampedBackup(BASE_DIR);
+      console.log('');
       await fullUpdate(latestVersion);
       break;
-    case 2:
-      console.log('');
-      printStatus('Updating default profile...');
-      await createBackup();
-      await overwriteProfile();
+    case 'select':
+      await promptSelectiveUpdate(latestVersion);
       break;
-    case 3:
-      console.log('');
-      printStatus('Updating scripts...');
-      await createBackup();
-      await overwriteScripts();
-      break;
-    case 4:
-      console.log('');
-      printStatus('Updating config.yml...');
-      await createBackup();
-      await overwriteConfig();
-      break;
-    case 5:
+    case 'reinstall':
       console.log('');
       printStatus('Deleting & reinstalling fresh...');
       await overwriteAll();
       break;
-    case 6:
+    case 'cancel':
       console.log('');
       printWarning('Installation cancelled');
       return;
@@ -196,16 +180,70 @@ async function promptOverwriteChoice(
 }
 
 /**
- * Create backup of existing installation
+ * Prompt for selective updates - allows multiple selection
  */
-async function createBackup(): Promise<void> {
-  const backupDir = `${BASE_DIR}.backup`;
-  if (existsSync(backupDir)) {
-    rmSync(backupDir, { recursive: true, force: true });
+async function promptSelectiveUpdate(latestVersion: string): Promise<void> {
+  const { updates } = await inquirer.prompt([
+    {
+      type: 'checkbox',
+      name: 'updates',
+      message: 'Select components to update (use space to select, enter to confirm):',
+      choices: [
+        {
+          name: 'Default profile (profiles/default/*)',
+          value: 'profile',
+        },
+        {
+          name: 'Scripts (scripts/*)',
+          value: 'scripts',
+        },
+        {
+          name: 'Config file (config.yml)',
+          value: 'config',
+        },
+        {
+          name: 'Changelog (CHANGELOG.md)',
+          value: 'changelog',
+        },
+      ],
+    },
+  ]);
+
+  if (updates.length === 0) {
+    console.log('');
+    printWarning('No updates selected');
+    return;
   }
-  cpSync(BASE_DIR, backupDir, { recursive: true });
-  printSuccess('Backed up existing installation to ~/agent-os.backup');
+
   console.log('');
+  printStatus(`Updating ${updates.length} component(s)...`);
+  createTimestampedBackup(BASE_DIR);
+  console.log('');
+
+  for (const update of updates) {
+    switch (update) {
+      case 'profile':
+        await overwriteProfile();
+        break;
+      case 'scripts':
+        await overwriteScripts();
+        break;
+      case 'config':
+        await overwriteConfig();
+        break;
+      case 'changelog':
+        await updateChangelog();
+        break;
+    }
+  }
+
+  // Update version if config was updated or if explicitly requested
+  if (latestVersion && updates.includes('config')) {
+    await updateVersion(latestVersion);
+  }
+
+  console.log('');
+  printSuccess('Selected updates completed!');
 }
 
 /**
@@ -213,86 +251,87 @@ async function createBackup(): Promise<void> {
  */
 async function fullUpdate(latestVersion: string): Promise<void> {
   // Update default profile
-  printStatus('Updating default profile...');
-  rmSync(join(BASE_DIR, 'profiles', 'default'), { recursive: true, force: true });
-  const profileFiles = await downloadFilesFromGitHub('profiles/default');
-  printSuccess(`Updated default profile (${profileFiles.length} files)`);
-  console.log('');
+  await overwriteProfile();
 
   // Update scripts
-  printStatus('Updating scripts...');
-  rmSync(join(BASE_DIR, 'scripts'), { recursive: true, force: true });
-  const scriptFiles = await downloadFilesFromGitHub('scripts');
-  makeExecutable(join(BASE_DIR, 'scripts'));
-  printSuccess(`Updated scripts (${scriptFiles.length} files)`);
-  console.log('');
+  await overwriteScripts();
 
   // Update CHANGELOG.md
+  await updateChangelog();
+
+  // Update version in config.yml
+  if (latestVersion) {
+    await updateVersion(latestVersion);
+  }
+
+  console.log('');
+  printSuccess('Full update completed!');
+}
+
+/**
+ * Update version in config.yml
+ */
+async function updateVersion(latestVersion: string): Promise<void> {
+  printStatus('Updating version number in config.yml...');
+  const configPath = join(BASE_DIR, 'config.yml');
+  if (existsSync(configPath)) {
+    const { readFileSync, writeFileSync } = await import('fs');
+    let content = readFileSync(configPath, 'utf-8');
+    content = content.replace(/^version:.*/m, `version: ${latestVersion}`);
+    writeFileSync(configPath, content);
+    printSuccess(`Updated version to ${latestVersion} in config.yml`);
+  }
+  console.log('');
+}
+
+/**
+ * Update changelog
+ */
+async function updateChangelog(): Promise<void> {
   printStatus('Updating CHANGELOG.md...');
   await downloadFile('CHANGELOG.md', join(BASE_DIR, 'CHANGELOG.md'));
   printSuccess('Updated CHANGELOG.md');
   console.log('');
-
-  // Update version in config.yml
-  if (latestVersion) {
-    printStatus('Updating version number in config.yml...');
-    const configPath = join(BASE_DIR, 'config.yml');
-    if (existsSync(configPath)) {
-      const { readFileSync, writeFileSync } = await import('fs');
-      let content = readFileSync(configPath, 'utf-8');
-      content = content.replace(/^version:.*/m, `version: ${latestVersion}`);
-      writeFileSync(configPath, content);
-      printSuccess(`Updated version to ${latestVersion} in config.yml`);
-    }
-  }
-  console.log('');
-
-  printSuccess('Full update completed!');
 }
 
 /**
  * Overwrite default profile only
  */
 async function overwriteProfile(): Promise<void> {
+  printStatus('Updating default profile...');
   rmSync(join(BASE_DIR, 'profiles', 'default'), { recursive: true, force: true });
   const files = await downloadFilesFromGitHub('profiles/default');
   printSuccess(`Updated default profile (${files.length} files)`);
   console.log('');
-  printSuccess('Default profile has been updated!');
 }
 
 /**
  * Overwrite scripts only
  */
 async function overwriteScripts(): Promise<void> {
+  printStatus('Updating scripts...');
   rmSync(join(BASE_DIR, 'scripts'), { recursive: true, force: true });
   const files = await downloadFilesFromGitHub('scripts');
   makeExecutable(join(BASE_DIR, 'scripts'));
   printSuccess(`Updated scripts (${files.length} files)`);
   console.log('');
-  printSuccess('Scripts have been updated!');
 }
 
 /**
  * Overwrite config only
  */
 async function overwriteConfig(): Promise<void> {
+  printStatus('Updating config.yml...');
   await downloadFile('config.yml', join(BASE_DIR, 'config.yml'));
   printSuccess('Updated config.yml');
   console.log('');
-  printSuccess('Config has been updated!');
 }
 
 /**
  * Delete everything and reinstall fresh
  */
 async function overwriteAll(): Promise<void> {
-  const backupDir = `${BASE_DIR}.backup`;
-  if (existsSync(backupDir)) {
-    rmSync(backupDir, { recursive: true, force: true });
-  }
-  cpSync(BASE_DIR, backupDir, { recursive: true });
-  printSuccess('Backed up existing installation to ~/agent-os.backup');
+  createTimestampedBackup(BASE_DIR);
   console.log('');
 
   rmSync(BASE_DIR, { recursive: true, force: true });
@@ -340,32 +379,30 @@ async function performFreshInstallation(): Promise<void> {
   console.log(`   ${Colors.YELLOW}cd path/to/project-directory${Colors.RESET}`);
   console.log('');
   console.log(`${Colors.GREEN}3) Install Agent OS in your project by running:${Colors.RESET}`);
-  console.log(`   ${Colors.YELLOW}agent-os install${Colors.RESET}`);
+  console.log(`   ${Colors.YELLOW}agent-os project setup${Colors.RESET}`);
   console.log('');
   console.log(`${Colors.GREEN}Visit the docs for guides on how to use Agent OS: https://buildermethods.com/agent-os${Colors.RESET}`);
   console.log('');
 }
 
 /**
- * Check if file should be excluded
+ * Get the GitHub API URL for the repo tree
  */
-function shouldExclude(filePath: string): boolean {
-  for (const pattern of EXCLUSIONS) {
-    if (pattern.includes('*')) {
-      const prefix = pattern.replace(/\*/g, '');
-      if (filePath.startsWith(prefix)) return true;
-    } else if (filePath === pattern) {
-      return true;
-    }
+function getRepoApiUrl(): string {
+  // Extract owner/repo from the REPO_URL
+  const match = REPO_URL.match(/github\.com\/([^/]+)\/([^/]+)/);
+  if (match) {
+    return `https://api.github.com/repos/${match[1]}/${match[2]}/git/trees/main?recursive=true`;
   }
-  return false;
+  // Fallback to srcmayte repo
+  return 'https://api.github.com/repos/srcmayte/agent-os/git/trees/main?recursive=true';
 }
 
 /**
  * Get all files from GitHub repo using the tree API
  */
 async function getRepoFiles(): Promise<string[]> {
-  const treeUrl = `https://api.github.com/repos/buildermethods/agent-os/git/trees/main?recursive=true`;
+  const treeUrl = getRepoApiUrl();
 
   const response = await fetch(treeUrl);
   if (!response.ok) {
@@ -376,7 +413,7 @@ async function getRepoFiles(): Promise<string[]> {
   const files: string[] = [];
 
   for (const item of data.tree) {
-    if (item.type === 'blob' && !shouldExclude(item.path)) {
+    if (item.type === 'blob' && !matchesExclusionPattern(item.path, EXCLUSIONS)) {
       files.push(item.path);
     }
   }
@@ -454,5 +491,3 @@ function makeExecutable(dir: string): void {
     }
   }
 }
-
-export { runBaseInstall };

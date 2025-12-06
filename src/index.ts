@@ -11,9 +11,8 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 import {
-  createBaseInstallCommand,
-  createProjectInstallCommand,
-  createProjectUpdateCommand,
+  createInstallCommand,
+  createProjectCommand,
   createCreateProfileCommand,
 } from './commands/index.js';
 
@@ -52,9 +51,13 @@ function createProgram(): Command {
     .helpOption('-h, --help', 'Display help for command');
 
   // Add commands
-  program.addCommand(createBaseInstallCommand());
-  program.addCommand(createProjectInstallCommand());
-  program.addCommand(createProjectUpdateCommand());
+  // `agent-os install` - Install Agent OS base to ~/agent-os
+  program.addCommand(createInstallCommand());
+  
+  // `agent-os project setup|sync` - Project-related commands
+  program.addCommand(createProjectCommand());
+  
+  // `agent-os create-profile` - Create a new profile
   program.addCommand(createCreateProfileCommand());
 
   // Add default action for no subcommand

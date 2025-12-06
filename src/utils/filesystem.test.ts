@@ -2,7 +2,7 @@ import { describe, expect, test, beforeEach, afterEach } from '@jest/globals';
 import { mkdtempSync, writeFileSync, rmSync, existsSync, readFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { ensureDir, copyFile, writeFile, normalizeName } from './filesystem.js';
+import { ensureDir, copyFile, writeFile, normalizeName, matchesExclusionPattern } from './filesystem.js';
 
 describe('Filesystem utilities', () => {
   let tempDir: string;
@@ -123,6 +123,38 @@ describe('Filesystem utilities', () => {
 
     test('should handle complex input', () => {
       expect(normalizeName('My_Test Profile! 123')).toBe('my-test-profile-123');
+    });
+  });
+
+  describe('matchesExclusionPattern', () => {
+    const patterns = ['scripts/base-install.sh', 'old-versions/*', '.git*', '.github/*'];
+
+    test('should match exact paths', () => {
+      expect(matchesExclusionPattern('scripts/base-install.sh', patterns)).toBe(true);
+      expect(matchesExclusionPattern('scripts/other.sh', patterns)).toBe(false);
+    });
+
+    test('should match wildcard suffix patterns', () => {
+      expect(matchesExclusionPattern('old-versions/v1.0', patterns)).toBe(true);
+      expect(matchesExclusionPattern('old-versions/backup/file.txt', patterns)).toBe(true);
+      expect(matchesExclusionPattern('new-versions/v1.0', patterns)).toBe(false);
+    });
+
+    test('should match wildcard prefix patterns', () => {
+      expect(matchesExclusionPattern('.git', patterns)).toBe(true);
+      expect(matchesExclusionPattern('.github', patterns)).toBe(true);
+      expect(matchesExclusionPattern('.gitignore', patterns)).toBe(true);
+      expect(matchesExclusionPattern('.github/workflows', patterns)).toBe(true);
+    });
+
+    test('should not match non-matching paths', () => {
+      expect(matchesExclusionPattern('profiles/default/standards/api.md', patterns)).toBe(false);
+      expect(matchesExclusionPattern('config.yml', patterns)).toBe(false);
+      expect(matchesExclusionPattern('README.md', patterns)).toBe(false);
+    });
+
+    test('should handle empty patterns array', () => {
+      expect(matchesExclusionPattern('any/path', [])).toBe(false);
     });
   });
 });

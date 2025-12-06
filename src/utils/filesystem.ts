@@ -103,3 +103,46 @@ export function normalizeName(input: string): string {
     .replace(/[ _]/g, '-')
     .replace(/[^a-z0-9-]/g, '');
 }
+
+/**
+ * Check if a path matches any of the exclusion patterns
+ * Supports:
+ * - Exact matches: 'path/to/file'
+ * - Wildcard suffixes: 'path/*' matches 'path/anything'
+ * - Wildcard prefixes: '.git*' matches '.git', '.github', '.gitignore'
+ * 
+ * @param filePath - Path to check
+ * @param patterns - Array of exclusion patterns
+ * @returns True if the path should be excluded
+ */
+export function matchesExclusionPattern(filePath: string, patterns: string[]): boolean {
+  for (const pattern of patterns) {
+    if (pattern.includes('*')) {
+      // Handle wildcard patterns
+      const parts = pattern.split('*');
+      const prefix = parts[0] || '';
+      const suffix = parts[1] || '';
+      
+      if (prefix && suffix) {
+        // Pattern like 'pre*suf' - must start with prefix and end with suffix
+        if (filePath.startsWith(prefix) && filePath.endsWith(suffix)) {
+          return true;
+        }
+      } else if (prefix) {
+        // Pattern like 'path/*' - must start with prefix
+        if (filePath.startsWith(prefix)) {
+          return true;
+        }
+      } else if (suffix) {
+        // Pattern like '*suffix' - must end with suffix
+        if (filePath.endsWith(suffix)) {
+          return true;
+        }
+      }
+    } else if (filePath === pattern) {
+      // Exact match
+      return true;
+    }
+  }
+  return false;
+}

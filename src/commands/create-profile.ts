@@ -330,5 +330,3 @@ async function createProfile(
     printSuccess('Profile structure created');
   }
 }
-
-export { runCreateProfile };
