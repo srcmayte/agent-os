@@ -32,3 +32,15 @@ node_modules/
 # Temporary files
 *.tmp
 *.temp
+
+# Build output
+dist/
+
+# Test coverage
+coverage/
+
+# Package lock (optional, but good for apps)
+package-lock.json
+
+# TypeScript cache
+*.tsbuildinfo
