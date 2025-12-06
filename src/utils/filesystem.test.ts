@@ -2,7 +2,7 @@ import { describe, expect, test, beforeEach, afterEach } from '@jest/globals';
 import { mkdtempSync, writeFileSync, rmSync, existsSync, readFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { ensureDir, copyFile, writeFile, normalizeName, matchesExclusionPattern } from './filesystem.js';
+import { ensureDir, copyFile, writeFile, normalizeName, matchesExclusionPattern, readFile, fileExists } from './filesystem.js';
 
 describe('Filesystem utilities', () => {
   let tempDir: string;
@@ -155,6 +155,46 @@ describe('Filesystem utilities', () => {
 
     test('should handle empty patterns array', () => {
       expect(matchesExclusionPattern('any/path', [])).toBe(false);
+    });
+
+    test('should handle suffix-only wildcard patterns', () => {
+      expect(matchesExclusionPattern('test.md', ['*.md'])).toBe(true);
+      expect(matchesExclusionPattern('test.txt', ['*.md'])).toBe(false);
+    });
+
+    test('should handle prefix and suffix wildcard patterns', () => {
+      expect(matchesExclusionPattern('test-file.md', ['test-*.md'])).toBe(true);
+      expect(matchesExclusionPattern('other-file.md', ['test-*.md'])).toBe(false);
+    });
+  });
+
+  describe('readFile', () => {
+    test('should read file content', () => {
+      const testFile = join(tempDir, 'read-test.txt');
+      writeFileSync(testFile, 'test content');
+      
+      const content = readFile(testFile);
+      expect(content).toBe('test content');
+    });
+
+    test('should return null for non-existent file', () => {
+      const nonExistentFile = join(tempDir, 'non-existent.txt');
+      const content = readFile(nonExistentFile);
+      expect(content).toBeNull();
+    });
+  });
+
+  describe('fileExists', () => {
+    test('should return true for existing file', () => {
+      const testFile = join(tempDir, 'exists-test.txt');
+      writeFileSync(testFile, 'test');
+      
+      expect(fileExists(testFile)).toBe(true);
+    });
+
+    test('should return false for non-existent file', () => {
+      const nonExistentFile = join(tempDir, 'does-not-exist.txt');
+      expect(fileExists(nonExistentFile)).toBe(false);
     });
   });
 });

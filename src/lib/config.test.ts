@@ -11,6 +11,8 @@ import {
   DEFAULT_CONFIG,
   validateBaseInstallation,
   isAgentOsInstalled,
+  needsMigration,
+  getBaseDir,
 } from './config.js';
 
 describe('Configuration management', () => {
@@ -264,6 +266,33 @@ standards_as_claude_code_skills: false
     test('should return false when project config does not exist', () => {
       rmSync(join(projectDir, 'agent-os', 'config.yml'), { force: true });
       expect(isAgentOsInstalled(projectDir)).toBe(false);
+    });
+  });
+
+  describe('needsMigration', () => {
+    test('should return true for empty version', () => {
+      expect(needsMigration('')).toBe(true);
+    });
+
+    test('should return true for version 1.x', () => {
+      expect(needsMigration('1.5.0')).toBe(true);
+    });
+
+    test('should return true for version 2.0.x', () => {
+      expect(needsMigration('2.0.9')).toBe(true);
+    });
+
+    test('should return false for version 2.1.0+', () => {
+      expect(needsMigration('2.1.0')).toBe(false);
+      expect(needsMigration('2.1.1')).toBe(false);
+      expect(needsMigration('3.0.0')).toBe(false);
+    });
+  });
+
+  describe('getBaseDir', () => {
+    test('should return path ending with agent-os', () => {
+      const dir = getBaseDir();
+      expect(dir).toContain('agent-os');
     });
   });
 });
