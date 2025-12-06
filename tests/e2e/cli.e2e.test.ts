@@ -1,8 +1,8 @@
 import { describe, expect, test, beforeEach, afterEach } from '@jest/globals';
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync } from 'fs';
+import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { execSync, spawn, ChildProcess } from 'child_process';
+import { execSync } from 'child_process';
 
 /**
  * E2E tests for the Agent OS CLI
@@ -123,8 +123,7 @@ describe('CLI E2E Tests', () => {
     });
 
     test('should fail when base installation does not exist', () => {
-      const { stderr, stdout, exitCode } = runCli(['project-install'], { cwd: tempDir });
-      const output = stdout + stderr;
+      const { exitCode } = runCli(['project-install'], { cwd: tempDir });
       // Should exit with error about missing base installation
       expect(exitCode).not.toBe(0);
     });
