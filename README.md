@@ -25,16 +25,6 @@ Use it with:
 
 ### Installation
 
-#### Via npm (recommended)
-
-```bash
-# Install globally
-npm install -g agent-os
-
-# Or use npx (no installation required)
-npx agent-os --help
-```
-
 #### From source
 
 ```bash
@@ -48,9 +38,11 @@ npm install
 # Build the CLI
 npm run build
 
-# Link globally (optional)
+# Link globally to use `agent-os` command
 npm link
 ```
+
+> **Note**: npm registry publishing is not currently supported. Install from source as shown above.
 
 ### Base Installation
 
@@ -215,11 +207,22 @@ tests/
 
 ### Running Tests
 
+The project has three types of tests: unit, integration, and end-to-end (E2E).
+
 ```bash
 # Run all tests
 npm test
 
-# Run with coverage
+# Run only unit tests (src/**/*.test.ts)
+npm run test:unit
+
+# Run only integration tests (tests/integration/)
+npm run test:integration
+
+# Run only E2E tests (tests/e2e/)
+npm run test:e2e
+
+# Run with coverage report
 npm run test:coverage
 
 # Run specific test file
@@ -228,6 +231,14 @@ npm test -- --testPathPattern=backup
 # Run in watch mode
 npm run test:watch
 ```
+
+#### Test Categories
+
+| Category | Location | Description |
+|----------|----------|-------------|
+| Unit | `src/**/*.test.ts` | Tests for individual modules and functions |
+| Integration | `tests/integration/` | Tests for component interactions |
+| E2E | `tests/e2e/` | Tests for complete CLI command execution |
 
 ---
 
