@@ -13,16 +13,3 @@ import { createBaseInstallCommand } from './install.js';
 export function createInstallCommand(): Command {
   return createBaseInstallCommand();
 }
-
-// Re-export shared utilities for use in other modules
-export {
-  REPO_URL,
-  BASE_DIR,
-  getRepoApiUrl,
-  getRepoFiles,
-  downloadFile,
-  downloadFilesFromGitHub,
-  downloadAllFiles,
-  getLatestVersion,
-  getCurrentVersion,
-} from './shared.js';

@@ -108,7 +108,7 @@ Aliases: `install`, `init`
 
 ### `agent-os project sync`
 
-Syncs/updates Agent OS installation in the current project.
+Syncs/updates project files (standards, commands, agents) from the currently selected profile.
 
 ```bash
 agent-os project sync [options]

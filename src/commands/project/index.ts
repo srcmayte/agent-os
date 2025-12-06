@@ -19,5 +19,3 @@ export function createProjectCommand(): Command {
 
   return project;
 }
-
-export { performProjectSync } from './sync.js';
