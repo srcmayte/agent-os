@@ -69,7 +69,7 @@ export interface ProjectInstallOptions {
 /**
  * Command line options for project-update
  */
-export interface ProjectUpdateOptions extends ProjectInstallOptions {}
+export type ProjectUpdateOptions = ProjectInstallOptions;
 
 /**
  * Command line options for create-profile
