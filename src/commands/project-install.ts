@@ -13,6 +13,7 @@ import {
   writeProjectConfig,
   isAgentOsInstalled,
   getBaseDir,
+  requireBaseInstallation,
 } from '../lib/config.js';
 import {
   installStandards,
@@ -91,13 +92,8 @@ async function runProjectInstall(options: ProjectInstallOptions): Promise<void> 
     process.exit(1);
   }
 
-  // Validate base installation
-  if (!validateBaseInstallation(baseDir)) {
-    printError('Agent OS base installation not found at ~/agent-os/');
-    console.log('\nPlease run the base installation first:\n');
-    console.log('  agent-os base-install\n');
-    process.exit(1);
-  }
+  // Validate base installation using shared function
+  requireBaseInstallation(baseDir);
 
   // Load and validate configuration
   const effectiveConfig = getEffectiveConfig(
@@ -154,13 +150,6 @@ function checkIsBaseInstallation(projectDir: string): boolean {
   const config = loadProjectConfig(projectDir);
   // Check if this looks like the base installation
   return projectDir.endsWith('agent-os') || Boolean(config && 'base_install' in config);
-}
-
-/**
- * Validate base installation exists
- */
-function validateBaseInstallation(baseDir: string): boolean {
-  return existsSync(join(baseDir, 'config.yml'));
 }
 
 /**

@@ -9,6 +9,8 @@ import {
   getEffectiveConfig,
   writeProjectConfig,
   DEFAULT_CONFIG,
+  validateBaseInstallation,
+  isAgentOsInstalled,
 } from './config.js';
 
 describe('Configuration management', () => {
@@ -239,6 +241,29 @@ standards_as_claude_code_skills: false
       const written = loadProjectConfig(projectDir);
       expect(written?.version).toBe('2.1.1');
       expect(written?.profile).toBe('default');
+    });
+  });
+
+  describe('validateBaseInstallation', () => {
+    test('should return true when config.yml exists', () => {
+      writeFileSync(join(baseDir, 'config.yml'), 'version: 2.1.1\n');
+      expect(validateBaseInstallation(baseDir)).toBe(true);
+    });
+
+    test('should return false when config.yml does not exist', () => {
+      expect(validateBaseInstallation(baseDir)).toBe(false);
+    });
+  });
+
+  describe('isAgentOsInstalled', () => {
+    test('should return true when project config exists', () => {
+      writeFileSync(join(projectDir, 'agent-os', 'config.yml'), 'version: 2.1.1\n');
+      expect(isAgentOsInstalled(projectDir)).toBe(true);
+    });
+
+    test('should return false when project config does not exist', () => {
+      rmSync(join(projectDir, 'agent-os', 'config.yml'), { force: true });
+      expect(isAgentOsInstalled(projectDir)).toBe(false);
     });
   });
 });

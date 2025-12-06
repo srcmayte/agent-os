@@ -236,3 +236,45 @@ export function needsMigration(projectVersion: string): boolean {
 
   return false;
 }
+
+/**
+ * Validate base installation exists
+ * @returns true if valid, false otherwise
+ */
+export function validateBaseInstallation(baseDir: string): boolean {
+  return existsSync(join(baseDir, 'config.yml'));
+}
+
+/**
+ * Require base installation to exist - exits with error message if not found
+ */
+export function requireBaseInstallation(baseDir: string): void {
+  if (!validateBaseInstallation(baseDir)) {
+    console.error('\x1b[38;2;255;32;86m✗ Agent OS base installation not found at ~/agent-os/\x1b[0m');
+    console.log('\nPlease run the base installation first:\n');
+    console.log('  agent-os base-install\n');
+    process.exit(1);
+  }
+}
+
+/**
+ * Require directory to exist - exits with error message if not found
+ */
+export function requireDirectory(path: string, errorMessage: string): void {
+  if (!existsSync(path)) {
+    console.error(`\x1b[38;2;255;32;86m✗ ${errorMessage}\x1b[0m`);
+    process.exit(1);
+  }
+}
+
+/**
+ * Require project installation to exist - exits with error message if not found
+ */
+export function requireProjectInstallation(projectDir: string): void {
+  if (!isAgentOsInstalled(projectDir)) {
+    console.error('\x1b[38;2;255;32;86m✗ Agent OS not installed in this project\x1b[0m');
+    console.log('\nPlease run project installation first:\n');
+    console.log('  agent-os install\n');
+    process.exit(1);
+  }
+}

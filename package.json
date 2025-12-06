@@ -21,7 +21,7 @@
     "clean": "rm -rf dist"
   },
   "keywords": ["ai", "coding", "agent", "cli", "development"],
-  "author": "Brian Casel @ Builder Methods",
+  "author": "Steve Clarke <srcmayte@gmail.com>",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"

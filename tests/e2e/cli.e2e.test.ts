@@ -1,0 +1,132 @@
+import { describe, expect, test, beforeEach, afterEach } from '@jest/globals';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
+import { execSync, spawn, ChildProcess } from 'child_process';
+
+/**
+ * E2E tests for the Agent OS CLI
+ * These tests verify the CLI commands work correctly end-to-end
+ */
+describe('CLI E2E Tests', () => {
+  const cliPath = join(process.cwd(), 'dist', 'index.js');
+
+  /**
+   * Helper to run CLI command and capture output
+   */
+  function runCli(args: string[], options: { cwd?: string; input?: string } = {}): {
+    stdout: string;
+    stderr: string;
+    exitCode: number | null;
+  } {
+    try {
+      const result = execSync(`node ${cliPath} ${args.join(' ')}`, {
+        cwd: options.cwd || process.cwd(),
+        encoding: 'utf-8',
+        timeout: 10000,
+        input: options.input,
+      });
+      return { stdout: result, stderr: '', exitCode: 0 };
+    } catch (error: unknown) {
+      const execError = error as { stdout?: string; stderr?: string; status?: number };
+      return {
+        stdout: execError.stdout || '',
+        stderr: execError.stderr || '',
+        exitCode: execError.status || 1,
+      };
+    }
+  }
+
+  describe('CLI version and help', () => {
+    test('should display version', () => {
+      const { stdout, exitCode } = runCli(['--version']);
+      expect(exitCode).toBe(0);
+      expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+    });
+
+    test('should display help', () => {
+      const { stdout, exitCode } = runCli(['--help']);
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain('agent-os');
+      expect(stdout).toContain('base-install');
+      expect(stdout).toContain('project-install');
+      expect(stdout).toContain('project-update');
+      expect(stdout).toContain('create-profile');
+    });
+
+    test('should display base-install help', () => {
+      const { stdout, exitCode } = runCli(['base-install', '--help']);
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain('Install Agent OS base installation');
+      expect(stdout).toContain('--verbose');
+    });
+
+    test('should display project-install help', () => {
+      const { stdout, exitCode } = runCli(['project-install', '--help']);
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain('Install Agent OS into the current project');
+      expect(stdout).toContain('--profile');
+      expect(stdout).toContain('--dry-run');
+    });
+
+    test('should display project-update help', () => {
+      const { stdout, exitCode } = runCli(['project-update', '--help']);
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain('Update Agent OS installation');
+      expect(stdout).toContain('--dry-run');
+    });
+
+    test('should display create-profile help', () => {
+      const { stdout, exitCode } = runCli(['create-profile', '--help']);
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain('Create a new Agent OS profile');
+      expect(stdout).toContain('--name');
+      expect(stdout).toContain('--inherits-from');
+    });
+  });
+
+  describe('CLI aliases', () => {
+    test('should recognize "install" alias for project-install', () => {
+      const { stdout, exitCode } = runCli(['install', '--help']);
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain('Install Agent OS into the current project');
+    });
+
+    test('should recognize "update" alias for project-update', () => {
+      const { stdout, exitCode } = runCli(['update', '--help']);
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain('Update Agent OS installation');
+    });
+
+    test('should recognize "init" alias for base-install', () => {
+      const { stdout, exitCode } = runCli(['init', '--help']);
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain('Install Agent OS base installation');
+    });
+
+    test('should recognize "profile" alias for create-profile', () => {
+      const { stdout, exitCode } = runCli(['profile', '--help']);
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain('Create a new Agent OS profile');
+    });
+  });
+
+  describe('project-install validation', () => {
+    let tempDir: string;
+
+    beforeEach(() => {
+      tempDir = mkdtempSync(join(tmpdir(), 'agent-os-e2e-'));
+    });
+
+    afterEach(() => {
+      rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    test('should fail when base installation does not exist', () => {
+      const { stderr, stdout, exitCode } = runCli(['project-install'], { cwd: tempDir });
+      const output = stdout + stderr;
+      // Should exit with error about missing base installation
+      expect(exitCode).not.toBe(0);
+    });
+  });
+});

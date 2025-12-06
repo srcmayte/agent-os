@@ -15,7 +15,7 @@ import {
   Colors,
 } from '../utils/output.js';
 import { normalizeName } from '../utils/filesystem.js';
-import { getBaseDir } from '../lib/config.js';
+import { getBaseDir, requireBaseInstallation, requireDirectory } from '../lib/config.js';
 import { getAvailableProfiles } from '../lib/profile.js';
 import type { CreateProfileOptions } from '../types/index.js';
 
@@ -48,18 +48,9 @@ async function runCreateProfile(options: CreateProfileOptions): Promise<void> {
   const baseDir = getBaseDir();
   const profilesDir = join(baseDir, 'profiles');
 
-  // Validate installation
-  if (!existsSync(baseDir)) {
-    printError('Agent OS base installation not found at ~/agent-os/');
-    console.log('\nPlease run base installation first:\n');
-    console.log('  agent-os base-install\n');
-    process.exit(1);
-  }
-
-  if (!existsSync(profilesDir)) {
-    printError(`Profiles directory not found at ${profilesDir}`);
-    process.exit(1);
-  }
+  // Validate installation using shared functions
+  requireBaseInstallation(baseDir);
+  requireDirectory(profilesDir, `Profiles directory not found at ${profilesDir}`);
 
   // Get profile name
   let profileName = options.name;

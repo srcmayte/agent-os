@@ -23,7 +23,7 @@ import { ensureDir, writeFile } from '../utils/filesystem.js';
 import type { BaseInstallOptions, UpdateChoice } from '../types/index.js';
 
 // Repository configuration
-const REPO_URL = 'https://github.com/buildermethods/agent-os';
+const REPO_URL = 'https://github.com/srcmayte/agent-os';
 const BASE_DIR = join(homedir(), 'agent-os');
 
 // Files to exclude from installation
@@ -53,9 +53,6 @@ async function runBaseInstall(options: BaseInstallOptions): Promise<void> {
   if (options.verbose) {
     setVerbose(true);
   }
-
-  // Check for curl (we'll use fetch in Node.js)
-  // Node.js has fetch built-in since v18
 
   // Check for existing installation
   if (existsSync(BASE_DIR)) {
