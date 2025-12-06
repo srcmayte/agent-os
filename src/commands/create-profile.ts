@@ -116,7 +116,7 @@ async function promptProfileName(profilesDir: string): Promise<string> {
     console.log('');
     console.log('');
     printStatus('Enter a name for the new profile:');
-    console.log("Example names: 'rails', 'python', 'react', 'wordpress'");
+    console.log("Example names: 'project-1', 'project-2' (use your domain, company, or project name)");
     console.log('');
 
     const { name } = await inquirer.prompt([

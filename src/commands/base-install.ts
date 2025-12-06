@@ -4,7 +4,7 @@
  */
 
 import { Command } from 'commander';
-import { existsSync, rmSync, chmodSync, readdirSync, statSync } from 'fs';
+import { existsSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { homedir } from 'os';
 import ora from 'ora';
@@ -43,11 +43,6 @@ export function createInstallCommand(): Command {
     });
 
   return command;
-}
-
-// Keep legacy command for backwards compatibility
-export function createBaseInstallCommand(): Command {
-  return createInstallCommand();
 }
 
 /**
@@ -194,10 +189,6 @@ async function promptSelectiveUpdate(latestVersion: string): Promise<void> {
           value: 'profile',
         },
         {
-          name: 'Scripts (scripts/*)',
-          value: 'scripts',
-        },
-        {
           name: 'Config file (config.yml)',
           value: 'config',
         },
@@ -225,9 +216,6 @@ async function promptSelectiveUpdate(latestVersion: string): Promise<void> {
       case 'profile':
         await overwriteProfile();
         break;
-      case 'scripts':
-        await overwriteScripts();
-        break;
       case 'config':
         await overwriteConfig();
         break;
@@ -252,9 +240,6 @@ async function promptSelectiveUpdate(latestVersion: string): Promise<void> {
 async function fullUpdate(latestVersion: string): Promise<void> {
   // Update default profile
   await overwriteProfile();
-
-  // Update scripts
-  await overwriteScripts();
 
   // Update CHANGELOG.md
   await updateChangelog();
@@ -306,18 +291,6 @@ async function overwriteProfile(): Promise<void> {
 }
 
 /**
- * Overwrite scripts only
- */
-async function overwriteScripts(): Promise<void> {
-  printStatus('Updating scripts...');
-  rmSync(join(BASE_DIR, 'scripts'), { recursive: true, force: true });
-  const files = await downloadFilesFromGitHub('scripts');
-  makeExecutable(join(BASE_DIR, 'scripts'));
-  printSuccess(`Updated scripts (${files.length} files)`);
-  console.log('');
-}
-
-/**
  * Overwrite config only
  */
 async function overwriteConfig(): Promise<void> {
@@ -364,9 +337,6 @@ async function performFreshInstallation(): Promise<void> {
     printError(String(err));
     process.exit(1);
   }
-
-  // Make scripts executable
-  makeExecutable(join(BASE_DIR, 'scripts'));
 
   console.log('');
   printSuccess('Agent OS has been successfully installed!');
@@ -473,21 +443,4 @@ async function downloadAllFiles(): Promise<number> {
   }
 
   return count;
-}
-
-/**
- * Make scripts executable
- */
-function makeExecutable(dir: string): void {
-  if (!existsSync(dir)) return;
-
-  const files = readdirSync(dir);
-  for (const file of files) {
-    if (file.endsWith('.sh')) {
-      const fullPath = join(dir, file);
-      if (statSync(fullPath).isFile()) {
-        chmodSync(fullPath, 0o755);
-      }
-    }
-  }
 }
