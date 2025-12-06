@@ -17,6 +17,7 @@ import {
   printWarning,
   setVerbose,
   Colors,
+  printCompletion,
 } from '../utils/output.js';
 import { getYamlValue } from '../utils/yaml.js';
 import { ensureDir, writeFile, matchesExclusionPattern } from '../utils/filesystem.js';
@@ -340,17 +341,13 @@ async function performFreshInstallation(): Promise<void> {
 
   console.log('');
   printSuccess('Agent OS has been successfully installed!');
-  console.log('');
-  console.log(`${Colors.GREEN}Next steps:${Colors.RESET}`);
-  console.log('');
-  console.log(`${Colors.GREEN}1) Customize your profile's standards in ~/agent-os/profiles/default/standards${Colors.RESET}`);
-  console.log('');
-  console.log(`${Colors.GREEN}2) Navigate to a project directory${Colors.RESET}`);
-  console.log(`   ${Colors.YELLOW}cd path/to/project-directory${Colors.RESET}`);
-  console.log('');
-  console.log(`${Colors.GREEN}3) Install Agent OS in your project by running:${Colors.RESET}`);
-  console.log(`   ${Colors.YELLOW}agent-os project setup${Colors.RESET}`);
-  console.log('');
+  
+  printCompletion('Installation complete!', [
+    "Customize your profile's standards in ~/agent-os/profiles/default/standards",
+    'Navigate to a project directory: cd path/to/project-directory',
+    'Install Agent OS in your project: agent-os project setup',
+  ]);
+  
   console.log(`${Colors.GREEN}Visit the docs for guides on how to use Agent OS: https://buildermethods.com/agent-os${Colors.RESET}`);
   console.log('');
 }

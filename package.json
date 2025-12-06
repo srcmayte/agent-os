@@ -7,6 +7,13 @@
   "bin": {
     "agent-os": "dist/index.js"
   },
+  "files": [
+    "dist",
+    "profiles",
+    "config.yml",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
@@ -20,9 +27,17 @@
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
-  "keywords": ["ai", "coding", "agent", "cli", "development"],
+  "keywords": ["ai", "coding", "agent", "cli", "development", "typescript", "agentic"],
   "author": "Steve Clarke <srcmayte@gmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/srcmayte/agent-os.git"
+  },
+  "bugs": {
+    "url": "https://github.com/srcmayte/agent-os/issues"
+  },
+  "homepage": "https://github.com/srcmayte/agent-os#readme",
   "engines": {
     "node": ">=18.0.0"
   },

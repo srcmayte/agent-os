@@ -82,3 +82,30 @@ export function printVerbose(message: string): void {
     console.error(`[VERBOSE] ${message}`);
   }
 }
+
+/**
+ * Print a completion message with next steps
+ */
+export function printCompletion(title: string, steps: string[]): void {
+  console.log('');
+  printSuccess(title);
+  
+  if (steps.length > 0) {
+    console.log('');
+    console.log(`${Colors.GREEN}Next steps:${Colors.RESET}`);
+    console.log('');
+    steps.forEach((step, index) => {
+      console.log(`${Colors.GREEN}${index + 1}) ${step}${Colors.RESET}`);
+      console.log('');
+    });
+  }
+}
+
+/**
+ * Parse boolean option value
+ */
+export function parseBool(value: string | boolean | undefined): boolean | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value === 'boolean') return value;
+  return value.toLowerCase() === 'true';
+}

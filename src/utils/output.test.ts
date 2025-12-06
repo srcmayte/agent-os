@@ -7,6 +7,8 @@ import {
   printWarning,
   printError,
   printVerbose,
+  printCompletion,
+  parseBool,
   setVerbose,
 } from './output.js';
 
@@ -97,6 +99,52 @@ describe('Output utilities', () => {
       const output = stderrSpy.mock.calls[0]?.[0] as string;
       expect(output).toContain('[VERBOSE]');
       expect(output).toContain('Verbose message');
+    });
+  });
+
+  describe('printCompletion', () => {
+    test('should print completion message with steps', () => {
+      printCompletion('Task completed!', ['Step 1', 'Step 2']);
+      expect(consoleSpy).toHaveBeenCalled();
+      const output = consoleSpy.mock.calls.map((c) => c[0]).join('');
+      expect(output).toContain('✓');
+      expect(output).toContain('Task completed!');
+      expect(output).toContain('Next steps:');
+      expect(output).toContain('1)');
+      expect(output).toContain('2)');
+    });
+
+    test('should handle empty steps without showing Next steps header', () => {
+      printCompletion('Done!', []);
+      expect(consoleSpy).toHaveBeenCalled();
+      const output = consoleSpy.mock.calls.map((c) => c[0]).join('');
+      expect(output).toContain('✓');
+      expect(output).toContain('Done!');
+      expect(output).not.toContain('Next steps:');
+    });
+  });
+
+  describe('parseBool', () => {
+    test('should return undefined for undefined input', () => {
+      expect(parseBool(undefined)).toBeUndefined();
+    });
+
+    test('should return boolean unchanged', () => {
+      expect(parseBool(true)).toBe(true);
+      expect(parseBool(false)).toBe(false);
+    });
+
+    test('should parse string "true" as true', () => {
+      expect(parseBool('true')).toBe(true);
+      expect(parseBool('TRUE')).toBe(true);
+      expect(parseBool('True')).toBe(true);
+    });
+
+    test('should parse other strings as false', () => {
+      expect(parseBool('false')).toBe(false);
+      expect(parseBool('yes')).toBe(false);
+      expect(parseBool('no')).toBe(false);
+      expect(parseBool('')).toBe(false);
     });
   });
 });

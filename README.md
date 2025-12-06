@@ -25,6 +25,18 @@ Use it with:
 
 ### Installation
 
+#### Via npm (recommended)
+
+```bash
+# Install globally
+npm install -g agent-os
+
+# Or use npx (no installation required)
+npx agent-os --help
+```
+
+#### From source
+
 ```bash
 # Clone the repository
 git clone https://github.com/srcmayte/agent-os.git
@@ -169,7 +181,11 @@ src/
 ├── commands/           # CLI command handlers
 │   ├── base-install.ts   # Base installation command
 │   ├── create-profile.ts # Profile creation command
-│   ├── project.ts        # Project setup/sync commands
+│   ├── project/          # Project commands directory
+│   │   ├── index.ts        # Project command group
+│   │   ├── setup.ts        # Project setup command
+│   │   ├── sync.ts         # Project sync command
+│   │   └── shared.ts       # Shared utilities
 │   └── index.ts          # Command exports
 ├── lib/                # Core business logic
 │   ├── config.ts         # Configuration management

@@ -13,6 +13,7 @@ import {
   printError,
   printWarning,
   Colors,
+  printCompletion,
 } from '../utils/output.js';
 import { normalizeName } from '../utils/filesystem.js';
 import { getBaseDir, requireBaseInstallation, requireDirectory } from '../lib/config.js';
@@ -93,11 +94,11 @@ async function runCreateProfile(options: CreateProfileOptions): Promise<void> {
     printStatus(`This profile was copied from: ${copyFrom}`);
   }
 
-  console.log('');
-  printStatus('Next steps:');
-  console.log('  1. Customize standards, workflows, and configurations in your profile');
-  console.log(`  2. Install Agent OS in a project using this profile with: agent-os install --profile ${profileName}`);
-  console.log('');
+  printCompletion('Profile created!', [
+    'Customize standards, workflows, and configurations in your profile',
+    `Install Agent OS in a project using this profile: agent-os project setup --profile ${profileName}`,
+  ]);
+  
   console.log(`${Colors.GREEN}Visit the docs on customizing your profile: https://buildermethods.com/agent-os/profiles${Colors.RESET}`);
   console.log('');
   console.log(`${Colors.GREEN}════════════════════════════════════════════${Colors.RESET}`);
