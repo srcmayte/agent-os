@@ -355,7 +355,7 @@ async function performFreshInstallation(): Promise<void> {
 function shouldExclude(filePath: string): boolean {
   for (const pattern of EXCLUSIONS) {
     if (pattern.includes('*')) {
-      const prefix = pattern.replace('*', '');
+      const prefix = pattern.replace(/\*/g, '');
       if (filePath.startsWith(prefix)) return true;
     } else if (filePath === pattern) {
       return true;
