@@ -90,8 +90,8 @@ Use these standards:
 
   test('should install standards to project', async () => {
     // Import and run the installer directly
-    const { installStandards } = await import('../../lib/installer.js');
-    const { getEffectiveConfig } = await import('../../lib/config.js');
+    const { installStandards } = await import('../../src/lib/installer.js');
+    const { getEffectiveConfig } = await import('../../src/lib/config.js');
 
     const config = getEffectiveConfig({}, baseDir, projectDir);
     const result = installStandards(projectDir, baseDir, config);
@@ -103,8 +103,8 @@ Use these standards:
   });
 
   test('should install Claude Code commands with workflow injection', async () => {
-    const { installClaudeCodeCommands } = await import('../../lib/installer.js');
-    const { getEffectiveConfig } = await import('../../lib/config.js');
+    const { installClaudeCodeCommands } = await import('../../src/lib/installer.js');
+    const { getEffectiveConfig } = await import('../../src/lib/config.js');
 
     const config = getEffectiveConfig({}, baseDir, projectDir);
     const result = installClaudeCodeCommands(projectDir, baseDir, config);
@@ -122,8 +122,8 @@ Use these standards:
   });
 
   test('should install Claude Code agents', async () => {
-    const { installClaudeCodeAgents } = await import('../../lib/installer.js');
-    const { getEffectiveConfig } = await import('../../lib/config.js');
+    const { installClaudeCodeAgents } = await import('../../src/lib/installer.js');
+    const { getEffectiveConfig } = await import('../../src/lib/config.js');
 
     const config = getEffectiveConfig({}, baseDir, projectDir);
     const result = installClaudeCodeAgents(projectDir, baseDir, config);
@@ -137,7 +137,7 @@ Use these standards:
   });
 
   test('should write project configuration', async () => {
-    const { writeProjectConfig, getEffectiveConfig } = await import('../../lib/config.js');
+    const { writeProjectConfig, getEffectiveConfig } = await import('../../src/lib/config.js');
 
     mkdirSync(join(projectDir, 'agent-os'), { recursive: true });
 
@@ -154,7 +154,7 @@ Use these standards:
   });
 
   test('should process conditionals in templates', async () => {
-    const { processConditionals } = await import('../../lib/template.js');
+    const { processConditionals } = await import('../../src/lib/template.js');
 
     const content = `Start
 {{IF use_claude_code_subagents}}

@@ -18,8 +18,7 @@
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write 'src/**/*.ts'",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist",
-    "prepublishOnly": "npm run build"
+    "clean": "rm -rf dist"
   },
   "keywords": ["ai", "coding", "agent", "cli", "development"],
   "author": "Brian Casel @ Builder Methods",
